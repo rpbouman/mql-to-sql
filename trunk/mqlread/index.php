@@ -1,4 +1,3 @@
-<pre>
 <?php
 set_include_path(
     get_include_path()
@@ -752,5 +751,8 @@ $tree = array();
 $mql_result_template = NULL;
 process_mql($mql, $tree);
 generate_sql($tree, $queries, 0);
+//print_r($tree);
 execute_queries($queries);
-echo(json_encode($queries[0]['results']));
+$result = $queries[0]['results'];
+echo(json_encode($result));
+//print_r($result);
