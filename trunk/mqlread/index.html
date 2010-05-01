@@ -86,39 +86,29 @@
         </textarea>
 
         <!-- YUI - required for JSON "pretty print" support -->
-        <script src="http://yui.yahooapis.com/2.8.0r4/build/yahoo/yahoo-min.js"></script>         
-        <script src="http://yui.yahooapis.com/2.8.0r4/build/json/json-min.js"></script>
+        <script type="text/javascript" src="http://yui.yahooapis.com/combo?2.8.0r4/build/yahoo/yahoo-min.js&amp;2.8.0r4/build/event/event-min.js&amp;2.8.0r4/build/connection/connection_core-min.js&amp;2.8.0r4/build/json/json-min.js"></script> 
 
         <!-- Script for the query editor -->
         <script type="text/javascript">
             (function () {
-            
-                //courtesy of http://en.wikipedia.org/wiki/XMLHttpRequest
-                if (typeof XMLHttpRequest == "undefined") {
-                    XMLHttpRequest = function () {
-                        try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch (e) {}
-                        try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch (e) {}
-                        try { return new ActiveXObject("Msxml2.XMLHTTP"); } catch (e) {}
-                        //Microsoft.XMLHTTP points to Msxml2.XMLHTTP.3.0 and is redundant
-                        throw new Error("This browser does not support XMLHttpRequest.");
-                    };
-                }
-                
+                            
                 function doMQLReadRequest(query){
                     var url = "index.php?query=" + encodeURIComponent("{\"query\":" + query + "}");
-                    var xhr = new XMLHttpRequest();
-                    xhr.open("GET", url, true);
-                    xhr.onreadystatechange = function(){
-                        if (xhr.readyState===4 && xhr.status===200) {
-                            handleMQLReadResponse(xhr.responseText);
-                        }
-                    }
-                    xhr.send(null);
+                    YAHOO.util.Connect.asyncRequest("GET", url, {
+                        "success": handleMQLReadResponse,
+                        "failure": handleMQLReadFailure
+                    }, null);
+                }                
+                
+                function handleMQLReadFailure(response){
+                    alert("Snap, something went wrong :("+
+                    "\n"+ "status: " + response.status + 
+                    "\n"+ "message: " + response.statusText
+                    );
                 }
                 
-                
                 function handleMQLReadResponse(response){
-                    var o = YAHOO.lang.JSON.parse(response);
+                    var o = YAHOO.lang.JSON.parse(response.responseText);
                     var t = YAHOO.lang.JSON.stringify(o, null, 2);
                     document.getElementById("txtResult").value = t;
                 }
