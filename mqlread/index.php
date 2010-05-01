@@ -473,6 +473,26 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
 /*****************************************************************************
 *   Execute query / render result
 ******************************************************************************/
+function map_mql_to_php_type($mql_type){
+    switch ($mql_type){
+        case '/type/boolean':
+            $php_type = 'bool';
+            break;
+        case '/type/content':
+        case '/type/datetime':
+        case '/type/text':
+        case '/type/rawstring':
+            $php_type = 'string';
+            break;
+        case '/type/float': 
+            $php_type = 'float';
+            break;
+        case '/type/int':
+            $php_type = 'integer';
+            break;
+    }
+    return $php_type;
+}
 
 function &execute_sql($sql, $params){
     global $pdo;
@@ -547,6 +567,7 @@ function get_result_object(&$mql_node, $query_index, &$result_object=NULL, $key=
 }
 
 function fill_result_object(&$mql_node, $query_index, $data, &$result_object){
+    global $explicit_type_conversion;
     if($mql_node['query_index']!==$query_index){
         return;
     }
@@ -563,6 +584,9 @@ function fill_result_object(&$mql_node, $query_index, $data, &$result_object){
             }
             else
             if ($alias = $property['alias']) {
+                if ($explicit_type_conversion) {                    
+                    settype($data[$alias], map_mql_to_php_type($property['schema']['type']));
+                }
                 $result_object[$key] = $data[$alias];
             }
         }
@@ -744,6 +768,7 @@ $pdo = new PDO(
 ,   $pdo_config['password']
 ,   $pdo_config['driver_options']
 );
+$explicit_type_conversion = $pdo_config['explicit_type_conversion'];
 /*****************************************************************************
 *   Main
 ******************************************************************************/
@@ -754,5 +779,13 @@ generate_sql($tree, $queries, 0);
 //print_r($tree);
 execute_queries($queries);
 $result = $queries[0]['results'];
-echo(json_encode($result));
-//print_r($result);
+echo(
+    json_encode(
+        array(
+            'code'              =>  '/api/status/ok'
+        ,   'result'            =>  $result
+        ,   'status'            =>  '200 OK'
+        ,   'transaction_id'    =>  'boe'
+        )
+    )
+);

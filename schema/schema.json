@@ -4,7 +4,8 @@
         "username": "sakila",
         "password": "sakila",
         "driver_options": {
-        }
+        },
+        "explicit_type_conversion": true
     },
     "domains": {
         "sakila": {
