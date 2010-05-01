@@ -1,8 +1,134 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+ "http://www.w3.org/TR/html4/loose.dtd">
 <html>
     <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>MQL to SQL Query Editor</title>
+        <style type="text/css">
+            * {
+                font-family: arial
+            }
+            textarea {
+                height:45%; 
+                width:98%;
+                border-style:solid;
+                border-width:1px;
+                color:blue;
+                background-color:rgb(255,255,170);
+                left: 1%;
+                font-family: monospace;
+            }
+            #txtQuery {
+                position: absolute;
+                top: 35px;
+                left: 1%
+            }
+            #txtResult {
+                position: absolute;
+                top: 52%;
+            }
+            #btnExecute {
+                position: absolute;
+                top: 49%;
+                left: 1%;
+            }
+        </style>
     </head>
-    <frameset rows="33%,*">
-        <frame src="mqlread.html"/>
-        <frame name="result" />
-    </frameset>
+    <body>
+        <div>
+            <a href="http://code.google.com/p/mql-to-sql/" target="mql-to-sql">Project: mql-to-sql</a>
+            |
+            <a href="http://www.freebase.com/docs/data" target="freebase">About Freebase</a>
+            |
+            <a href="http://www.freebase.com/docs/mql" target="freebase">MQL Reference</a>
+            |
+            <a href="https://docs.google.com/viewer?url=http://download.freebase.com/MQLcheatsheet-081208.pdf" target="freebase">MQL Cheatsheet</a>
+        </div>
+        <textarea id="txtQuery">
+{
+    "type": "/sakila/customer",
+    "customer_id": 1,
+    "first_name": null,
+    "last_name": null,
+    "fk_customer_address":{
+        "address": null,
+        "postal_code": null,
+        "phone": null,
+        "fk_address_city": {
+            "city": null,
+            "fk_city_country": {
+                "country": null
+            }
+        }
+    },
+    "fk_rental_customer": [{
+        "rental_id": null,
+        "rental_date": null,
+        "return_date": null,
+        "fk_rental_inventory": {
+            "store_id": null,
+            "fk_inventory_film": {
+                "title": null,
+                "rental_rate": null,
+                "rental_duration": null
+            }
+        }
+    }],
+    "fk_payment_customer": [{
+        "rental_id": null,
+        "payment_date": null,
+        "amount": null
+    }]
+}
+        </textarea>
+        <button type="button" id="btnExecute">Execute</button>
+        <textarea id="txtResult">
+        </textarea>
+
+        <!-- YUI - required for JSON "pretty print" support -->
+        <script src="http://yui.yahooapis.com/2.8.0r4/build/yahoo/yahoo-min.js"></script>         
+        <script src="http://yui.yahooapis.com/2.8.0r4/build/json/json-min.js"></script>
+
+        <!-- Script for the query editor -->
+        <script type="text/javascript">
+            (function () {
+            
+                //courtesy of http://en.wikipedia.org/wiki/XMLHttpRequest
+                if (typeof XMLHttpRequest == "undefined") {
+                    XMLHttpRequest = function () {
+                        try { return new ActiveXObject("Msxml2.XMLHTTP.6.0"); } catch (e) {}
+                        try { return new ActiveXObject("Msxml2.XMLHTTP.3.0"); } catch (e) {}
+                        try { return new ActiveXObject("Msxml2.XMLHTTP"); } catch (e) {}
+                        //Microsoft.XMLHTTP points to Msxml2.XMLHTTP.3.0 and is redundant
+                        throw new Error("This browser does not support XMLHttpRequest.");
+                    };
+                }
+                
+                function doMQLReadRequest(query){
+                    var url = "index.php?query=" + encodeURIComponent("{\"query\":" + query + "}");
+                    var xhr = new XMLHttpRequest();
+                    xhr.open("GET", url, true);
+                    xhr.onreadystatechange = function(){
+                        if (xhr.readyState===4 && xhr.status===200) {
+                            handleMQLReadResponse(xhr.responseText);
+                        }
+                    }
+                    xhr.send(null);
+                }
+                
+                
+                function handleMQLReadResponse(response){
+                    var o = YAHOO.lang.JSON.parse(response);
+                    var t = YAHOO.lang.JSON.stringify(o, null, 2);
+                    document.getElementById("txtResult").value = t;
+                }
+
+                var rst = document.getElementById("txtResult");
+                
+                document.getElementById("btnExecute").onclick = function(){
+                    doMQLReadRequest(document.getElementById("txtQuery").value);
+                }
+            })();
+        </script>
+    </bodY>
 </html>
