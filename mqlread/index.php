@@ -256,6 +256,13 @@ $t_alias_id = 0;
 $c_alias_id = 0;
 $p_id = 0;
 
+function reset_ids(){
+    global $t_alias_id, $c_alias_id, $p_id;
+    $t_alias_id = 0;
+    $c_alias_id = 0;
+    $p_id = 0;
+}
+
 function get_t_alias(){
     global $t_alias_id;
     return 't'.(++$t_alias_id);
@@ -308,7 +315,7 @@ function get_from_clause($schema, $t_alias, $child_t_alias, $schema_name, $table
                     break;
                 case 'referenced<-referencing':
                     $column_ref = $t_alias.'.'.$columns['referencing_column'];
-                    $alias = $t_alias.get_c_alias(FALSE);
+                    $alias = $t_alias.get_c_alias();
                     $merge_into_columns[] = $alias;
                     $select[$column_ref] = $alias;
                     $order_by .= ($order_by===''? 'ORDER BY ' : "\n, ");
@@ -537,25 +544,30 @@ function map_mql_to_php_type($mql_type){
     return $php_type;
 }
 
-function &execute_sql($sql, $params){
+$statement_cache = array();
+
+function prepare_sql_statement($statement_text){
+    global $pdo, $statement_cache;
+    if (!($statement_handle = $statement_cache[$statement_text])){
+        $statement_handle = $pdo->prepare($statement_text);
+        $statement_cache[$statement_text] = $statement_handle;
+    }
+    return $statement_handle;
+}
+
+function &execute_sql($statement_text, $params){
     global $pdo;
-    $stmt = $pdo->prepare($sql);
+    $statement_handle = prepare_sql_statement($statement_text);
     foreach($params as $param_key => $param){
-        $stmt->bindValue(
+        $statement_handle->bindValue(
             $param['name']
         ,   $param['value']
         ,   $param['type']
         );
     }
-    if (!$stmt->execute()){
-        $errorInfo = $stmt->errorInfo();
-        exit(
-         "\n".$errorInfo[2]
-        ."\n\noffending query: ".$sql
-        );
-    }
-    $result = &$stmt->fetchAll(PDO::FETCH_ASSOC);
-    $stmt->closeCursor();
+    $statement_handle->execute();
+    $result = &$statement_handle->fetchAll(PDO::FETCH_ASSOC);
+    $statement_handle->closeCursor();
     return $result;
 }
 
@@ -738,8 +750,40 @@ function execute_queries(&$queries) {
     }
 }
 /*****************************************************************************
-*   Validate request
+*   Handle request
 ******************************************************************************/
+function handle_query($query){
+    //check if the query parameter is valid MQL query envelope
+    if (!property_exists($query, 'query')) {
+        exit('MQL query envelope must have a query attribute');
+    }
+    $mql = $query->query;
+
+    $tree = array();
+    reset_ids();
+    process_mql($mql, $tree);
+    generate_sql($tree, $queries, 0);
+    //print_r($tree);
+    execute_queries($queries);
+    $result = &$queries[0]['results'];
+    return array(
+        'code'      =>  '/api/status/ok'
+    ,   'result'    =>  $result
+    );
+}
+
+function handle_queries($queries){
+    $queries = get_object_vars($queries);
+    $results = array(
+        'code' =>  '/api/status/ok'
+    );
+    foreach ($queries as $query_key => $query){
+        $result = handle_query($query);
+        $results[$query_key] = $result;
+    }
+    return $results;
+}
+
 $args = NULL;
 
 switch ($_SERVER['REQUEST_METHOD']){
@@ -754,33 +798,31 @@ switch ($_SERVER['REQUEST_METHOD']){
 }
 
 $query = $args['query'];
+$queries = $args['queries'];
 
 //check if the query parameter is present
-if (!isset($query)) {
-    exit('query not specified');
+if ((!isset($query) && !isset($queries))
+||  ( isset($query) &&  isset($queries))) {
+    exit('Either query or queries must be specified');
 }
+
+$query_or_queries = $query? $query : $queries;
 
 //immunize against magic quoting
 if (get_magic_quotes_gpc() === 1) {
-    $query = stripslashes($query);
+    $query_or_queries = stripslashes($query_or_queries);
 }
 
 //check if the query parameter is valid JSON
-$query_decode = json_decode($query);
+$query_decode = json_decode($query_or_queries);
 if ($query_decode===NULL) {
-    exit('query is not valid JSON ('.get_last_json_error().')');
+    exit('query or queries not valid JSON ('.get_last_json_error().')');
 }
 
 //testing if the envelope is an object (not some other random JSON value)
 if (!is_object($query_decode)) {
-    exit('MQL query envelope must be an object');
+    exit('Envelope must be an object');
 }
-
-//check if the query parameter is valid MQL query envelope
-if (!property_exists($query_decode, 'query')) {
-    exit('MQL query envelope must have a query attribute');
-}
-$mql = $query_decode->query;
 
 /*****************************************************************************
 *   Schema
@@ -820,23 +862,16 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $file = dirname(dirname(__FILE__)).DIRECTORY_SEPARATOR.'data'.DIRECTORY_SEPARATOR.'sakila.sqlite';
 $pdo->exec('attach "'.$file.'" AS sakila');
 $explicit_type_conversion = $pdo_config['explicit_type_conversion'];
-
 /*****************************************************************************
 *   Main
 ******************************************************************************/
-$tree = array();
-process_mql($mql, $tree);
-generate_sql($tree, $queries, 0);
-//print_r($tree);
-execute_queries($queries);
-$result = $queries[0]['results'];
-echo(
-    json_encode(
-        array(
-            'code'              =>  '/api/status/ok'
-        ,   'result'            =>  $result
-        ,   'status'            =>  '200 OK'
-        ,   'transaction_id'    =>  'boe'
-        )
-    )
-);
+if ($queries) {
+    $result = handle_queries($query_decode);
+}
+else {
+    $result = handle_query($query_decode);
+}
+$result['status'] = '200 OK';
+$result['transaction_id'] = 'not implemented';
+
+echo json_encode($result);
