@@ -365,7 +365,7 @@ function handle_filter_property(&$where, &$params, $t_alias, $column_name, $prop
         $params[] = array(
             'name'  =>  $param_name
         ,   'value' =>  $property['value']
-        ,   'type'  =>  map_mql_to_pdo_type($schema['type'])
+        ,   'type'  =>  map_mql_to_pdo_type($property['schema']['type'])
         );
     }
 }
@@ -742,7 +742,7 @@ $mql = $query_decode->query;
 /*****************************************************************************
 *   Schema
 ******************************************************************************/
-$metadata_file_name = '../schema/schema.json';
+$metadata_file_name = '../schema/schema-sqlite.json';
 
 if (!file_exists($metadata_file_name)){
     exit('Cannot find schema file "'.$metadata_file_name.'".');
@@ -768,6 +768,9 @@ $pdo = new PDO(
 ,   $pdo_config['password']
 ,   $pdo_config['driver_options']
 );
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$file = dirname(dirname(__FILE__)).'\data\sakila.sqlite';
+$pdo->exec('attach "'.$file.'" AS sakila');
 $explicit_type_conversion = $pdo_config['explicit_type_conversion'];
 /*****************************************************************************
 *   Main
