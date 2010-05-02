@@ -8,43 +8,72 @@
             * {
                 font-family: arial
             }
+            
+            body {
+            }
+            
+            table {
+                height: 100%;
+                position: absolute;
+                top: 0px;
+                bottom:0px;
+                left: 0px;
+                right:0px;
+                width:100%;
+            }
+            td {
+                vertical-align: top;
+                align: left;
+            }
+            
             textarea {
-                height:45%; 
-                width:98%;
                 border-style:solid;
                 border-width:1px;
                 color:blue;
                 background-color:rgb(255,255,170);
-                left: 1%;
                 font-family: monospace;
+                width: 100%;
+                height:100%;
+                top:0px;
+                bottom:0px;
             }
-            #txtQuery {
-                position: absolute;
-                top: 35px;
-                left: 1%
+            
+            .top {
+                height: 35px;
             }
-            #txtResult {
-                position: absolute;
-                top: 52%;
+            
+            .left {
+                width: 75px;
             }
-            #btnExecute {
-                position: absolute;
-                top: 49%;
-                left: 1%;
+            
+            .right {
+                height: 50%;
+            }
+            
+            button {
+                
             }
         </style>
     </head>
     <body>
-        <div>
-            <a href="http://code.google.com/p/mql-to-sql/" target="mql-to-sql">Project: mql-to-sql</a>
-            |
-            <a href="http://www.freebase.com/docs/data" target="freebase">About Freebase</a>
-            |
-            <a href="http://www.freebase.com/docs/mql" target="freebase">MQL Reference</a>
-            |
-            <a href="https://docs.google.com/viewer?url=http://download.freebase.com/MQLcheatsheet-081208.pdf" target="freebase">MQL Cheatsheet</a>
-        </div>
-        <textarea id="txtQuery">
+        <table>
+            <tr>
+                <td class="top" colspan="2">
+                    <a href="http://code.google.com/p/mql-to-sql/" target="mql-to-sql">Project: mql-to-sql</a>
+                    |
+                    <a href="http://www.freebase.com/docs/data" target="freebase">About Freebase</a>
+                    |
+                    <a href="http://www.freebase.com/docs/mql" target="freebase">MQL Reference</a>
+                    |
+                    <a href="https://docs.google.com/viewer?url=http://download.freebase.com/MQLcheatsheet-081208.pdf" target="freebase">MQL Cheatsheet</a>
+                </td>
+            </tr>
+            <tr>
+                <td class="left">
+                    <button type="button" id="btnExecute">Execute</button>
+                </td>
+                <td class="right">
+                    <textarea id="txtQuery">
 {
     "type": "/sakila/customer",
     "customer_id": 1,
@@ -80,13 +109,21 @@
         "amount": null
     }]
 }
-        </textarea>
-        <button type="button" id="btnExecute">Execute</button>
-        <textarea id="txtResult">
-        </textarea>
+                    </textarea>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                </td>
+                <td>
+                    <textarea id="txtResult">&#13;&#10;</textarea>
+                </td>
+            </tr>
+        </table>
 
+        
         <!-- YUI - required for JSON "pretty print" support -->
-        <script type="text/javascript" src="http://yui.yahooapis.com/combo?2.8.0r4/build/yahoo/yahoo-min.js&amp;2.8.0r4/build/event/event-min.js&amp;2.8.0r4/build/connection/connection_core-min.js&amp;2.8.0r4/build/json/json-min.js"></script> 
+        <script type="text/javascript" src="http://yui.yahooapis.com/combo?2.8.0r4/build/yahoo/yahoo.js&amp;2.8.0r4/build/event/event.js&amp;2.8.0r4/build/connection/connection_core.js&amp;2.8.0r4/build/json/json.js"></script> 
 
         <!-- Script for the query editor -->
         <script type="text/javascript">
@@ -110,7 +147,10 @@
                 function handleMQLReadResponse(response){
                     var o = YAHOO.lang.JSON.parse(response.responseText);
                     var t = YAHOO.lang.JSON.stringify(o, null, 2);
-                    document.getElementById("txtResult").value = t;
+                    var txtResult = document.getElementById("txtResult");
+                    txtResult.value = t;
+                    txtResult.rows=100;
+                    txtResult.style.height = "100%";
                 }
 
                 var rst = document.getElementById("txtResult");
