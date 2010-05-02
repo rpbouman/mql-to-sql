@@ -128,8 +128,14 @@
         <!-- Script for the query editor -->
         <script type="text/javascript">
             (function () {
-                            
+
+                function setResult(v){
+                    var txtResult = document.getElementById("txtResult");
+                    txtResult.value = v;
+                }
+
                 function doMQLReadRequest(query){
+                    setResult("");
                     var url = "index.php?query=" + encodeURIComponent("{\"query\":" + query + "}");
                     YAHOO.util.Connect.asyncRequest("GET", url, {
                         "success": handleMQLReadResponse,
@@ -147,10 +153,7 @@
                 function handleMQLReadResponse(response){
                     var o = YAHOO.lang.JSON.parse(response.responseText);
                     var t = YAHOO.lang.JSON.stringify(o, null, 2);
-                    var txtResult = document.getElementById("txtResult");
-                    txtResult.value = t;
-                    txtResult.rows=100;
-                    txtResult.style.height = "100%";
+                    setResult(t);
                 }
 
                 var rst = document.getElementById("txtResult");
