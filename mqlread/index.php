@@ -181,8 +181,8 @@ function process_mql_object($mql_object, &$parent){
         case 0:
             exit('Could not find a type. Currently we rely on a known type');
             break;
-        case 1:
-            foreach($types as $type_name => $type){}
+        case 1:                        
+            foreach($types as $type_name => $type){} //assigning the contents of the array to the $type variable. php gurus, any better way to do this?
             break;
         default:
             exit('Found more than one type. Currently we can handle only one type.');
@@ -269,6 +269,11 @@ function get_c_alias($new=TRUE){
     return 'c'.$c_alias_id;
 }
 
+function get_p_name(){
+    global $p_id;
+    return ':p'.(++$p_id);
+}
+
 function get_from_clause($schema, $t_alias, $child_t_alias, $schema_name, $table_name, &$query){
     $direction = $schema['direction'];
 
@@ -341,13 +346,37 @@ function map_mql_to_pdo_type($mql_type){
     return $pdo_type;
 }
 
-function handle_filter_property(&$where, &$params, $t_alias, $column_name, $property){
-    global $p_id;
+function add_parameter(&$where, &$params, $value, $pdo_type){
+    $where .= ($param_name = get_p_name());
+    $params[] = array(
+        'name'  =>  $param_name
+    ,   'value' =>  $value
+    ,   'type'  =>  $pdo_type
+    );
+}
 
+function add_parameter_for_property(&$where, &$params, $property){
+    $property_value = $property['value'];
+    $mql_type = $property['schema']['type'];
+    $pdo_type = map_mql_to_pdo_type($mql_type);
+    if (is_array($property_value)) {
+        $num_entries = count($property_value);
+        for ($i=0; $i<$num_entries; $i++) {
+            if ($i){
+                $where .= ', ';
+            }
+            add_parameter($where, $params, $property_value[$i], $pdo_type);
+        }
+    }
+    else {
+        add_parameter($where, $params, $property_value, $pdo_type);
+    }
+}
+
+function handle_filter_property(&$where, &$params, $t_alias, $column_name, $property){
     $where .= ($where===''? 'WHERE': "\nAND").' '.$t_alias.'.'.$column_name;
     
     //prepare right hand side of the filter expression
-    $property_value = $property['value'];
     if ($operator = $property['operator']) {
         //If an operator is specified, 
         //the expression is used in the WHERE clause.
@@ -359,13 +388,13 @@ function handle_filter_property(&$where, &$params, $t_alias, $column_name, $prop
                 $where .= ' '.$operator.' ';
                 break;
             case '|=':
-                $where .= ' IN ('.$property_value.')';
+                $where .= ' IN (';
+                $add_closing_parenthesis = TRUE;
                 break;
             case '?=':  //extension. Ordinary database LIKE
                 $where .= ' LIKE ';
                 break;
         }
-        $value = $property['value'];
     }
     else {
         //If no operator is specified, 
@@ -373,14 +402,9 @@ function handle_filter_property(&$where, &$params, $t_alias, $column_name, $prop
         $where .= ' = ';
     }
     //prepare the right hand side of the comparison expression
-    
-    if ($operator != '|=') {
-        $where .= ($param_name = ':p'.++$p_id);
-        $params[] = array(
-            'name'  =>  $param_name
-        ,   'value' =>  $property['value']
-        ,   'type'  =>  map_mql_to_pdo_type($property['schema']['type'])
-        );
+    add_parameter_for_property(&$where, &$params, $property);    
+    if ($add_closing_parenthesis) {
+        $where .= ')';
     }
 }
 
@@ -425,11 +449,16 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
     $indexes = &$query['indexes'];
     
     $type = analyze_type($mql_node['types'][0]);
-    $schema_domain = $metadata['domains'][$type['domain']];
-    $schema_type = $schema_domain['types'][$type['type']];
-
-    $schema_name = $schema_domain['schema_name'];
-    $table_name = $schema_type['table_name'];
+    $domain_name = $type['domain'];
+    $schema_domain = $metadata['domains'][$domain_name];
+    if (!($schema_name = $schema_domain['schema_name'])){
+        $schema_name = $domain_name;
+    }
+    $type_name = $type['type'];
+    $schema_type = $schema_domain['types'][$type_name];
+    if (!($table_name = $schema_type['table_name'])){
+        $table_name = $type_name;
+    }
     $t_alias = get_t_alias();
         
     $schema = $mql_node['schema'];
@@ -791,11 +820,11 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $file = dirname(dirname(__FILE__)).DIRECTORY_SEPARATOR.'data'.DIRECTORY_SEPARATOR.'sakila.sqlite';
 $pdo->exec('attach "'.$file.'" AS sakila');
 $explicit_type_conversion = $pdo_config['explicit_type_conversion'];
+
 /*****************************************************************************
 *   Main
 ******************************************************************************/
 $tree = array();
-$mql_result_template = NULL;
 process_mql($mql, $tree);
 generate_sql($tree, $queries, 0);
 //print_r($tree);
