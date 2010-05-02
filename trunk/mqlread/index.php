@@ -769,7 +769,12 @@ $pdo = new PDO(
 ,   $pdo_config['driver_options']
 );
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-$file = dirname(dirname(__FILE__)).'\data\sakila.sqlite';
+//ok - this bit here is nasty - sqlite does not support schemas, 
+//instead we have to "attach" a database file and give that an alias.
+//right now we have no way to sanely configure this from within the schema
+//we just have to live with it for now, and yank out the PDO config from the schema.
+//that was necessary anyway to ease deployment (same schema, different connection situation)
+$file = dirname(dirname(__FILE__)).DIRECTORY_SEPARATOR.'data'.DIRECTORY_SEPARATOR.'sakila.sqlite';
 $pdo->exec('attach "'.$file.'" AS sakila');
 $explicit_type_conversion = $pdo_config['explicit_type_conversion'];
 /*****************************************************************************
