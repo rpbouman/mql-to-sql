@@ -116,6 +116,19 @@ function process_mql_object($mql_object, &$parent){
         if (!($property = analyze_property($property_key, $property_value))){
             exit('Property "'.$property_key.'" is not valid.');
         }
+        $operator = $property['operator'];
+        if ($operator
+        && ($property_value === NULL
+        ||  is_object($property_value) 
+        || ($operator!=='|=' && is_array($property_value))
+        || ($operator==='|=' && count($property_value)===0))
+        ) {
+            exit("Operator ".$operator.' '
+            .($operator==='|=' 
+            ? 'takes a non-empty list of values' 
+            : 'takes a single value (not an object or an array)')
+            );
+        }
         $property_qualifier = $property['qualifier'];
         $property_name      = $property['name'];
         switch($property['name']){
@@ -352,6 +365,7 @@ function handle_filter_property(&$where, &$params, $t_alias, $column_name, $prop
                 $where .= ' LIKE ';
                 break;
         }
+        $value = $property['value'];
     }
     else {
         //If no operator is specified, 
