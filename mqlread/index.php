@@ -265,7 +265,7 @@ function reset_ids(){
 
 function get_t_alias(){
     global $t_alias_id;
-    return 't'.(++$t_alias_id);
+    return 'T'.(++$t_alias_id);
 }
 
 function get_c_alias($new=TRUE){
@@ -273,12 +273,12 @@ function get_c_alias($new=TRUE){
     if ($new){
         $c_alias_id++;
     }
-    return 'c'.$c_alias_id;
+    return 'C'.$c_alias_id;
 }
 
 function get_p_name(){
     global $p_id;
-    return ':p'.(++$p_id);
+    return 'P'.(++$p_id);
 }
 
 function get_from_clause($schema, $t_alias, $child_t_alias, $schema_name, $table_name, &$query){
@@ -327,7 +327,11 @@ function get_from_clause($schema, $t_alias, $child_t_alias, $schema_name, $table
         }            
     }
     $from = &$query['from'];
-    $from .= $schema_name.'.'.$table_name.' AS '.$t_alias.$join_condition;    
+    //schema_name can be explicitly set to the empty string so the default database is used.
+    if ($schema_name !== ''){
+        $from .= $schema_name.'.';
+    }
+    $from .= $table_name.' '.$t_alias.$join_condition;    
 }
 
 function map_mql_to_pdo_type($mql_type){
@@ -354,7 +358,7 @@ function map_mql_to_pdo_type($mql_type){
 }
 
 function add_parameter(&$where, &$params, $value, $pdo_type){
-    $where .= ($param_name = get_p_name());
+    $where .= ':'.($param_name = get_p_name());
     $params[] = array(
         'name'  =>  $param_name
     ,   'value' =>  $value
@@ -457,15 +461,31 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
     
     $type = analyze_type($mql_node['types'][0]);
     $domain_name = $type['domain'];
-    $schema_domain = $metadata['domains'][$domain_name];
-    if (!($schema_name = $schema_domain['schema_name'])){
-        $schema_name = $domain_name;
-    }
+    $domains = $metadata['domains'];
+    $schema_domain = $domains[$domain_name];
     $type_name = $type['type'];
     $schema_type = $schema_domain['types'][$type_name];
-    if (!($table_name = $schema_type['table_name'])){
+    
+    //table_name is either explicitly specified, or we take the type name
+    if (isset($schema_type['table_name'])){
+        $table_name = $schema_type['table_name'];
+    } 
+    else {
         $table_name = $type_name;
     }
+        
+    //schema_name is either explicitly specified, or we take the domain name
+    if (isset($schema_type['schema_name'])) {   //schema_name is defined at the type level
+        $schema_name = $schema_type['schema_name'];
+    }
+    else                                        //schema_name is defined at the domain level     
+    if (isset($schema_domain['schema_name'])){
+        $schema_name = $schema_domain['schema_name'];
+    }
+    else {                                      //schema_name not defined, settle for the domain name
+        $schema_name = $domain_name;
+    }
+    
     $t_alias = get_t_alias();
         
     $schema = $mql_node['schema'];
@@ -827,6 +847,7 @@ if (!is_object($query_decode)) {
 /*****************************************************************************
 *   Schema
 ******************************************************************************/
+//$metadata_file_name = '../schema/schema.json';
 $metadata_file_name = '../schema/schema-sqlite.json';
 
 if (!file_exists($metadata_file_name)){
@@ -842,7 +863,21 @@ if (!$metadata = json_decode($metadata_file_contents, TRUE)) {
 /*****************************************************************************
 *   Database (PDO)
 ******************************************************************************/
-$pdo_config = $metadata['pdo'];
+//$connection_file_name = '../schema/connection-mysql.json';
+//$connection_file_name = '../schema/connection-oracle.json';
+$connection_file_name = '../schema/connection-sqlite.json';
+
+if (!file_exists($connection_file_name)){
+    exit('Cannot find connection file "'.$connection_file_name.'".');
+}
+
+$connection_file_contents = file_get_contents($connection_file_name);
+
+if (!$connection = json_decode($connection_file_contents, TRUE)) {
+    exit('connection is not valid json ('.get_last_json_error().').');
+}
+
+$pdo_config = $connection['pdo'];
 
 if (!is_array($pdo_config)) {
     exit('schema does not specify a valid pdo configuration.');
@@ -854,14 +889,7 @@ $pdo = new PDO(
 ,   $pdo_config['driver_options']
 );
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-//ok - this bit here is nasty - sqlite does not support schemas, 
-//instead we have to "attach" a database file and give that an alias.
-//right now we have no way to sanely configure this from within the schema
-//we just have to live with it for now, and yank out the PDO config from the schema.
-//that was necessary anyway to ease deployment (same schema, different connection situation)
-$file = dirname(dirname(__FILE__)).DIRECTORY_SEPARATOR.'data'.DIRECTORY_SEPARATOR.'sakila.sqlite';
-$pdo->exec('attach "'.$file.'" AS sakila');
-$explicit_type_conversion = $pdo_config['explicit_type_conversion'];
+$explicit_type_conversion = $connection['explicit_type_conversion'];
 /*****************************************************************************
 *   Main
 ******************************************************************************/

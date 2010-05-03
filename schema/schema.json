@@ -1,18 +1,8 @@
 {
-    "pdo": {
-        "dsn": "mysql:dbname=;host=sr04011930;port=3351",
-        "username": "sakila",
-        "password": "sakila",
-        "driver_options": {
-        },
-        "explicit_type_conversion": true
-    },
     "domains": {
         "sakila": {
-            "schema_name": "sakila",
             "types": {
                 "actor": {
-                    "table_name": "actor",
                     "properties": {
                         "actor_id": {
                             "column_name": "actor_id",
@@ -53,36 +43,7 @@
                         }
                     }
                 },
-                "actor_info": {
-                    "table_name": "actor_info",
-                    "properties": {
-                        "actor_id": {
-                            "column_name": "actor_id",
-                            "nullable": false,
-                            "type": "/type/int"
-                        },
-                        "film_info": {
-                            "column_name": "film_info",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "first_name": {
-                            "column_name": "first_name",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "last_name": {
-                            "column_name": "last_name",
-                            "nullable": false,
-                            "type": "/type/text"
-                        }
-                    },
-                    "keys": {
-
-                    }
-                },
                 "address": {
-                    "table_name": "address",
                     "properties": {
                         "address": {
                             "column_name": "address",
@@ -177,7 +138,6 @@
                     }
                 },
                 "category": {
-                    "table_name": "category",
                     "properties": {
                         "category_id": {
                             "column_name": "category_id",
@@ -214,7 +174,6 @@
                     }
                 },
                 "city": {
-                    "table_name": "city",
                     "properties": {
                         "city": {
                             "column_name": "city",
@@ -267,7 +226,6 @@
                     }
                 },
                 "country": {
-                    "table_name": "country",
                     "properties": {
                         "country": {
                             "column_name": "country",
@@ -304,7 +262,6 @@
                     }
                 },
                 "customer": {
-                    "table_name": "customer",
                     "properties": {
                         "active": {
                             "column_name": "active",
@@ -403,61 +360,7 @@
                         }
                     }
                 },
-                "customer_list": {
-                    "table_name": "customer_list",
-                    "properties": {
-                        "address": {
-                            "column_name": "address",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "city": {
-                            "column_name": "city",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "country": {
-                            "column_name": "country",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "ID": {
-                            "column_name": "ID",
-                            "nullable": false,
-                            "type": "/type/int"
-                        },
-                        "name": {
-                            "column_name": "name",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "notes": {
-                            "column_name": "notes",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "phone": {
-                            "column_name": "phone",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "SID": {
-                            "column_name": "SID",
-                            "nullable": false,
-                            "type": "/type/int"
-                        },
-                        "zip code": {
-                            "column_name": "zip code",
-                            "nullable": true,
-                            "type": "/type/text"
-                        }
-                    },
-                    "keys": {
-
-                    }
-                },
                 "film": {
-                    "table_name": "film",
                     "properties": {
                         "description": {
                             "column_name": "description",
@@ -588,7 +491,6 @@
                     }
                 },
                 "film_actor": {
-                    "table_name": "film_actor",
                     "properties": {
                         "actor_id": {
                             "column_name": "actor_id",
@@ -636,7 +538,6 @@
                     }
                 },
                 "film_category": {
-                    "table_name": "film_category",
                     "properties": {
                         "category_id": {
                             "column_name": "category_id",
@@ -683,82 +584,7 @@
                         }
                     }
                 },
-                "film_list": {
-                    "table_name": "film_list",
-                    "properties": {
-                        "actors": {
-                            "column_name": "actors",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "category": {
-                            "column_name": "category",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "description": {
-                            "column_name": "description",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "FID": {
-                            "column_name": "FID",
-                            "nullable": true,
-                            "type": "/type/int"
-                        },
-                        "length": {
-                            "column_name": "length",
-                            "nullable": true,
-                            "type": "/type/int"
-                        },
-                        "price": {
-                            "column_name": "price",
-                            "nullable": true,
-                            "type": "/type/float"
-                        },
-                        "rating": {
-                            "column_name": "rating",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "title": {
-                            "column_name": "title",
-                            "nullable": true,
-                            "type": "/type/text"
-                        }
-                    },
-                    "keys": {
-
-                    }
-                },
-                "film_text": {
-                    "table_name": "film_text",
-                    "properties": {
-                        "description": {
-                            "column_name": "description",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "film_id": {
-                            "column_name": "film_id",
-                            "nullable": false,
-                            "type": "/type/int"
-                        },
-                        "title": {
-                            "column_name": "title",
-                            "nullable": false,
-                            "type": "/type/text"
-                        }
-                    },
-                    "keys": {
-                        "PRIMARY": {
-                            "type": "PRIMARY KEY",
-                            "columns": ["film_id"]
-                        }
-                    }
-                },
                 "inventory": {
-                    "table_name": "inventory",
                     "properties": {
                         "film_id": {
                             "column_name": "film_id",
@@ -822,7 +648,6 @@
                     }
                 },
                 "language": {
-                    "table_name": "language",
                     "properties": {
                         "fk_film_language": {
                             "type": "/sakila/film",
@@ -869,56 +694,7 @@
                         }
                     }
                 },
-                "nicer_but_slower_film_list": {
-                    "table_name": "nicer_but_slower_film_list",
-                    "properties": {
-                        "actors": {
-                            "column_name": "actors",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "category": {
-                            "column_name": "category",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "description": {
-                            "column_name": "description",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "FID": {
-                            "column_name": "FID",
-                            "nullable": true,
-                            "type": "/type/int"
-                        },
-                        "length": {
-                            "column_name": "length",
-                            "nullable": true,
-                            "type": "/type/int"
-                        },
-                        "price": {
-                            "column_name": "price",
-                            "nullable": true,
-                            "type": "/type/float"
-                        },
-                        "rating": {
-                            "column_name": "rating",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "title": {
-                            "column_name": "title",
-                            "nullable": true,
-                            "type": "/type/text"
-                        }
-                    },
-                    "keys": {
-
-                    }
-                },
                 "payment": {
-                    "table_name": "payment",
                     "properties": {
                         "amount": {
                             "column_name": "amount",
@@ -997,7 +773,6 @@
                     }
                 },
                 "rental": {
-                    "table_name": "rental",
                     "properties": {
                         "customer_id": {
                             "column_name": "customer_id",
@@ -1090,67 +865,7 @@
                         }
                     }
                 },
-                "rental_agg": {
-                    "table_name": "rental_agg",
-                    "properties": {
-                        "customer_id": {
-                            "column_name": "customer_id",
-                            "nullable": true,
-                            "type": "/type/int"
-                        },
-                        "num_rentals": {
-                            "column_name": "num_rentals",
-                            "nullable": true,
-                            "type": "/type/int"
-                        }
-                    },
-                    "keys": {
-
-                    }
-                },
-                "sales_by_film_category": {
-                    "table_name": "sales_by_film_category",
-                    "properties": {
-                        "category": {
-                            "column_name": "category",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "total_sales": {
-                            "column_name": "total_sales",
-                            "nullable": true,
-                            "type": "/type/float"
-                        }
-                    },
-                    "keys": {
-
-                    }
-                },
-                "sales_by_store": {
-                    "table_name": "sales_by_store",
-                    "properties": {
-                        "manager": {
-                            "column_name": "manager",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "store": {
-                            "column_name": "store",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "total_sales": {
-                            "column_name": "total_sales",
-                            "nullable": true,
-                            "type": "/type/float"
-                        }
-                    },
-                    "keys": {
-
-                    }
-                },
                 "staff": {
-                    "table_name": "staff",
                     "properties": {
                         "active": {
                             "column_name": "active",
@@ -1270,56 +985,7 @@
                         }
                     }
                 },
-                "staff_list": {
-                    "table_name": "staff_list",
-                    "properties": {
-                        "address": {
-                            "column_name": "address",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "city": {
-                            "column_name": "city",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "country": {
-                            "column_name": "country",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "ID": {
-                            "column_name": "ID",
-                            "nullable": false,
-                            "type": "/type/int"
-                        },
-                        "name": {
-                            "column_name": "name",
-                            "nullable": true,
-                            "type": "/type/text"
-                        },
-                        "phone": {
-                            "column_name": "phone",
-                            "nullable": false,
-                            "type": "/type/text"
-                        },
-                        "SID": {
-                            "column_name": "SID",
-                            "nullable": false,
-                            "type": "/type/int"
-                        },
-                        "zip code": {
-                            "column_name": "zip code",
-                            "nullable": true,
-                            "type": "/type/text"
-                        }
-                    },
-                    "keys": {
-
-                    }
-                },
                 "store": {
-                    "table_name": "store",
                     "properties": {
                         "address_id": {
                             "column_name": "address_id",

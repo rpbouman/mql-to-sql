@@ -1,18 +1,9 @@
 {
-    "pdo": {
-        "dsn": "sqlite::memory:",
-        "username": null,
-        "password": null,
-        "driver_options": {
-        },
-        "explicit_type_conversion": true
-    },
     "domains": {
         "sakila": {
-            "schema_name": "sakila",
+            "schema_name": "",
             "types": {
                 "actor": {
-                    "table_name": "actor",
                     "properties": {
                         "actor_id": {
                             "column_name": "actor_id",
@@ -54,7 +45,6 @@
                     }
                 },
                 "address": {
-                    "table_name": "address",
                     "properties": {
                         "address": {
                             "column_name": "address",
@@ -149,7 +139,6 @@
                     }
                 },
                 "category": {
-                    "table_name": "category",
                     "properties": {
                         "category_id": {
                             "column_name": "category_id",
@@ -186,7 +175,6 @@
                     }
                 },
                 "city": {
-                    "table_name": "city",
                     "properties": {
                         "city": {
                             "column_name": "city",
@@ -239,7 +227,6 @@
                     }
                 },
                 "country": {
-                    "table_name": "country",
                     "properties": {
                         "country": {
                             "column_name": "country",
@@ -276,7 +263,6 @@
                     }
                 },
                 "customer": {
-                    "table_name": "customer",
                     "properties": {
                         "active": {
                             "column_name": "active",
@@ -376,7 +362,6 @@
                     }
                 },
                 "film": {
-                    "table_name": "film",
                     "properties": {
                         "description": {
                             "column_name": "description",
@@ -507,7 +492,6 @@
                     }
                 },
                 "film_actor": {
-                    "table_name": "film_actor",
                     "properties": {
                         "actor_id": {
                             "column_name": "actor_id",
@@ -555,7 +539,6 @@
                     }
                 },
                 "film_category": {
-                    "table_name": "film_category",
                     "properties": {
                         "category_id": {
                             "column_name": "category_id",
@@ -603,7 +586,6 @@
                     }
                 },
                 "inventory": {
-                    "table_name": "inventory",
                     "properties": {
                         "film_id": {
                             "column_name": "film_id",
@@ -667,7 +649,6 @@
                     }
                 },
                 "language": {
-                    "table_name": "language",
                     "properties": {
                         "fk_film_language": {
                             "type": "/sakila/film",
@@ -715,7 +696,6 @@
                     }
                 },
                 "payment": {
-                    "table_name": "payment",
                     "properties": {
                         "amount": {
                             "column_name": "amount",
@@ -794,7 +774,6 @@
                     }
                 },
                 "rental": {
-                    "table_name": "rental",
                     "properties": {
                         "customer_id": {
                             "column_name": "customer_id",
@@ -888,7 +867,6 @@
                     }
                 },
                 "staff": {
-                    "table_name": "staff",
                     "properties": {
                         "active": {
                             "column_name": "active",
@@ -1009,7 +987,6 @@
                     }
                 },
                 "store": {
-                    "table_name": "store",
                     "properties": {
                         "address_id": {
                             "column_name": "address_id",
