@@ -66,7 +66,7 @@ function is_filter_property($value){
 }
 
 function analyze_property($property_name, $property_value){
-    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(<=?|>=?|~=|!=|\|=|\?=|=)?$/';
+    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|\?=)?$/';
     $matches = array();
     if (preg_match($property_pattern, $property_name, $matches)){
         return array(
@@ -848,8 +848,8 @@ if (!is_object($query_decode)) {
 /*****************************************************************************
 *   Schema
 ******************************************************************************/
-//$metadata_file_name = '../schema/schema.json';
-$metadata_file_name = '../schema/schema-sqlite.json';
+$metadata_file_name = '../schema/schema.json';
+//$metadata_file_name = '../schema/schema-sqlite.json';
 
 if (!file_exists($metadata_file_name)){
     exit('Cannot find schema file "'.$metadata_file_name.'".');
@@ -864,9 +864,9 @@ if (!$metadata = json_decode($metadata_file_contents, TRUE)) {
 /*****************************************************************************
 *   Database (PDO)
 ******************************************************************************/
-//$connection_file_name = '../schema/connection-mysql.json';
+$connection_file_name = '../schema/connection-mysql.json';
 //$connection_file_name = '../schema/connection-oracle.json';
-$connection_file_name = '../schema/connection-sqlite.json';
+//$connection_file_name = '../schema/connection-sqlite.json';
 
 if (!file_exists($connection_file_name)){
     exit('Cannot find connection file "'.$connection_file_name.'".');
