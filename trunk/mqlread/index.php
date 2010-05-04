@@ -66,7 +66,7 @@ function is_filter_property($value){
 }
 
 function analyze_property($property_name, $property_value){
-    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(<=?|>=?|~=|!=|\|=|\?=)?$/';
+    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(<=?|>=?|~=|!=|\|=|\?=|=)?$/';
     $matches = array();
     if (preg_match($property_pattern, $property_name, $matches)){
         return array(
@@ -395,7 +395,8 @@ function handle_filter_property(&$where, &$params, $t_alias, $column_name, $prop
             case '~=':  //funky mql pattern matcher
                 //not implemented yet.
                 break;
-            case '<': case '>': case '<=': case '>=': case '!=':
+            case '<': case '>': case '<=': case '>=': case '!=': 
+            case '=': //note that = is an extension. Silly it's not standard.
                 $where .= ' '.$operator.' ';
                 break;
             case '|=':
