@@ -160,12 +160,13 @@
                             "nullable": false,
                             "type": "/type/datetime"
                         },
-                        "name": {
+                        "category_name": {
                             "column_name": "name",
                             "nullable": false,
                             "type": "/type/text"
                         }
                     },
+                    "default-property": "category_name",
                     "keys": {
                         "PRIMARY": {
                             "type": "PRIMARY KEY",
@@ -681,12 +682,13 @@
                             "nullable": false,
                             "type": "/type/datetime"
                         },
-                        "name": {
+                        "language_name": {
                             "column_name": "name",
                             "nullable": false,
                             "type": "/type/text"
                         }
                     },
+                    "default_property": "language_name",
                     "keys": {
                         "PRIMARY": {
                             "type": "PRIMARY KEY",
