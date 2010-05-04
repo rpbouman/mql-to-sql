@@ -66,7 +66,7 @@ function is_filter_property($value){
 }
 
 function analyze_property($property_name, $property_value){
-    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|\?=)?$/';
+    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|\?=    )?$/';
     $matches = array();
     if (preg_match($property_pattern, $property_name, $matches)){
         return array(
@@ -200,7 +200,11 @@ function process_mql_object($mql_object, &$parent){
                     $property['qualifier'] = $type_name;
                     $property['schema'] = $schema_property;
                     if ($schema_property['join_condition']) {
-                        process_mql($property['value'], $property);
+                        $property['types'][] = $schema_property['type'];
+                        $property_value = &$property['value'];
+                        if (is_object($property_value) || is_array($property_value)) {
+                            process_mql($property_value, $property);
+                        }                        
                     }
                 }
                 else {
@@ -283,7 +287,6 @@ function get_p_name(){
 
 function get_from_clause($schema, $t_alias, $child_t_alias, $schema_name, $table_name, &$query){
     $direction = $schema['direction'];
-
     $from = &$query['from'];
     switch ($direction) {
         case 'referencing->referenced':
@@ -326,7 +329,6 @@ function get_from_clause($schema, $t_alias, $child_t_alias, $schema_name, $table
             }
         }            
     }
-    $from = &$query['from'];
     //schema_name can be explicitly set to the empty string so the default database is used.
     if ($schema_name !== ''){
         $from .= $schema_name.'.';
@@ -429,11 +431,11 @@ function handle_non_filter_property($t_alias, $column_name, &$select, &$property
 
 function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, &$merge_into=NULL){
     global $metadata;
-
     if ($mql_node['entries']) {
         generate_sql($mql_node['entries'], $queries, $query_index, $child_t_alias, $merge_into);
         return;
     }
+    
     if (!isset($mql_node['query_index'])){
         $mql_node['query_index'] = $query_index;
     }
@@ -489,54 +491,72 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
     
     $t_alias = get_t_alias();
         
-    $schema = $mql_node['schema'];
+    $schema = &$mql_node['schema'];
 
     get_from_clause($schema, $t_alias, $child_t_alias, $schema_name, $table_name, $query);
     
-    $properties = &$mql_node['properties'];    
-    foreach ($properties as $property_name => &$property) {
-        $schema = $property['schema'];        
-        if ($direction = $schema['direction']) {
-            if ($direction === 'referenced<-referencing'){
-                $index_columns = array();
-                $index_columns_string = '';
-                foreach ($schema['join_condition'] as $columns) {
-                    $column_ref = $t_alias.'.'.$columns['referenced_column'];
-                    if (!($c_alias = $select[$column_ref])) {
-                        $c_alias = $t_alias.get_c_alias();
-                        $select[$column_ref] = $c_alias;
+    if ($properties = &$mql_node['properties']) { 
+        foreach ($properties as $property_name => &$property) {
+            $schema = $property['schema'];
+            if ($direction = $schema['direction']) {            
+                if ($direction === 'referenced<-referencing'){
+                    $index_columns = array();
+                    $index_columns_string = '';
+                    foreach ($schema['join_condition'] as $columns) {
+                        $column_ref = $t_alias.'.'.$columns['referenced_column'];
+                        if (!($c_alias = $select[$column_ref])) {
+                            $c_alias = $t_alias.get_c_alias();
+                            $select[$column_ref] = $c_alias;
+                        }
+                        $index_columns_string .= $c_alias;
+                        $index_columns[] = $c_alias;
                     }
-                    $index_columns_string .= $c_alias;
-                    $index_columns[] = $c_alias;
-                }
-                if (!$indexes[$index_columns_string]){
-                    $indexes[$index_columns_string] = array(
-                        'columns'   =>  $index_columns
-                    ,   'entries'   =>  array()
+                    if (!$indexes[$index_columns_string]){
+                        $indexes[$index_columns_string] = array(
+                            'columns'   =>  $index_columns
+                        ,   'entries'   =>  array()
+                        );
+                    }
+                    $merge_into = array(
+                        'query_index'   =>  $query_index                  
+                    ,   'index'         =>  $index_columns_string
+                    ,   'columns'       =>  array()
                     );
+                    $new_query_index = count($queries);
                 }
-                $merge_into = array(
-                    'query_index'   =>  $query_index                  
-                ,   'index'         =>  $index_columns_string
-                ,   'columns'       =>  array()
-                );
-                $new_query_index = count($queries);
+                else 
+                if ($direction === 'referencing->referenced') {
+                    $merge_into = NULL;
+                    $new_query_index = $query_index;
+                }            
+                $property['query_index'] = $new_query_index;
+                generate_sql($property, $queries, $new_query_index, $t_alias, $merge_into);
             }
-            else {
-                $merge_into = NULL;
-                $new_query_index = $query_index;
-            }            
-            $property['query_index'] = $new_query_index;
-            generate_sql($property, $queries, $new_query_index, $t_alias, $merge_into);
+            else 
+            if ($column_name = $schema['column_name']){
+                if ($property['is_filter']) {        
+                    handle_filter_property($where, $params, $t_alias, $column_name, $property);
+                }
+                else {
+                    handle_non_filter_property($t_alias, $column_name, $select, $property);
+                }
+            }
         }
-        else 
-        if ($column_name = $schema['column_name']){
-            if ($property['is_filter']) {        
-                handle_filter_property(&$where, &$params, $t_alias, $column_name, $property);
-            }
-            else {
-                handle_non_filter_property($t_alias, $column_name, &$select, &$property);
-            }        
+    }
+    else 
+    if ($default_property_name = $schema_type['default_property']) {
+        $default_property = $schema_type['properties'][$default_property_name];
+        if (!$default_property){
+            exit('Default property "'.$default_property_name.'" specified but not found in "/'.$domain_name.'/'.$type_name.'"');
+        }
+        $column_name = $default_property['column_name'];
+        $property = &$mql_node;
+        $schema['type'] = $default_property['type'];
+        if ($property['is_filter']) {        
+            handle_filter_property($where, $params, $t_alias, $column_name, $property);
+        }
+        else {
+            handle_non_filter_property($t_alias, $column_name, $select, $property);
         }
     }
 }
@@ -653,7 +673,7 @@ function fill_result_object(&$mql_node, $query_index, $data, &$result_object){
     }
     else
     if ($properties = $mql_node['properties']) {
-        foreach ($result_object as $key => $value) {
+        foreach ($result_object as $key => $value) {        
             $property = $properties[$key];
             if (is_object($value) || is_array($value)){
                 fill_result_object($property, $query_index, $data, &$result_object[$key]);
@@ -848,8 +868,8 @@ if (!is_object($query_decode)) {
 /*****************************************************************************
 *   Schema
 ******************************************************************************/
-$metadata_file_name = '../schema/schema.json';
-//$metadata_file_name = '../schema/schema-sqlite.json';
+//$metadata_file_name = '../schema/schema.json';
+$metadata_file_name = '../schema/schema-sqlite.json';
 
 if (!file_exists($metadata_file_name)){
     exit('Cannot find schema file "'.$metadata_file_name.'".');
@@ -864,9 +884,9 @@ if (!$metadata = json_decode($metadata_file_contents, TRUE)) {
 /*****************************************************************************
 *   Database (PDO)
 ******************************************************************************/
-$connection_file_name = '../schema/connection-mysql.json';
+//$connection_file_name = '../schema/connection-mysql.json';
 //$connection_file_name = '../schema/connection-oracle.json';
-//$connection_file_name = '../schema/connection-sqlite.json';
+$connection_file_name = '../schema/connection-sqlite.json';
 
 if (!file_exists($connection_file_name)){
     exit('Cannot find connection file "'.$connection_file_name.'".');
