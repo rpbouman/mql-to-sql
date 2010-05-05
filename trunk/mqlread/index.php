@@ -759,6 +759,7 @@ function execute_queries(&$queries) {
     foreach($queries as $query_index => &$query){
         $indexes = &$query['indexes'];
         $sql = get_query_sql($query);
+        $query['sql'] = $sql;
         $mql_node = $query['mql_node'];
         get_result_object($mql_node, $query_index);
         $result_object = $mql_node['result_object'];
@@ -794,6 +795,7 @@ function execute_queries(&$queries) {
 *   Handle request
 ******************************************************************************/
 function handle_query($query){
+    global $debug_info;
     //check if the query parameter is valid MQL query envelope
     if (!property_exists($query, 'query')) {
         exit('MQL query envelope must have a query attribute');
@@ -804,13 +806,24 @@ function handle_query($query){
     reset_ids();
     process_mql($mql, $tree);
     generate_sql($tree, $queries, 0);
-    //print_r($tree);
     execute_queries($queries);
     $result = &$queries[0]['results'];
-    return array(
+    //get the sql statements out for debugging purposes
+    $sql_statements = array();
+    $return_value = array(
         'code'      =>  '/api/status/ok'
     ,   'result'    =>  $result
     );
+    if ($debug_info) {
+        foreach ($queries as $query_index => $query) {
+            $sql_statements[] = array(
+                                    'statement' =>  $query['sql']
+                                ,   'params'    =>  $query['params']
+                                );
+        }
+        $return_value['sql'] = $sql_statements;
+    }
+    return $return_value;
 }
 
 function handle_queries($queries){
@@ -865,6 +878,7 @@ if (!is_object($query_decode)) {
     exit('Envelope must be an object');
 }
 
+$debug_info = $query_decode->debug_info;
 /*****************************************************************************
 *   Schema
 ******************************************************************************/
@@ -924,3 +938,4 @@ $result['status'] = '200 OK';
 $result['transaction_id'] = 'not implemented';
 
 echo json_encode($result);
+echo 'bla';
