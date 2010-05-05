@@ -938,4 +938,3 @@ $result['status'] = '200 OK';
 $result['transaction_id'] = 'not implemented';
 
 echo json_encode($result);
-echo 'bla';
