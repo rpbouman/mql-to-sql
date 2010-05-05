@@ -76,39 +76,41 @@
                 <td class="right">
                     <textarea id="txtQuery" rows="20">
 {
-    "type": "/sakila/customer",
-    "customer_id": 1,
-    "first_name": null,
-    "last_name": null,
-    "fk_customer_address":{
-        "address": null,
-        "postal_code": null,
-        "phone": null,
-        "fk_address_city": {
-            "city": null,
-            "fk_city_country": {
-                "country": null
-            }
+  "type":"/sakila/customer",
+  "customer_id":1,
+  "first_name":null,
+  "last_name":null,
+  "fk_customer_address":{
+    "address":null,
+    "postal_code":null,
+    "phone":null,
+    "fk_address_city":{
+      "city":null,
+      "fk_city_country":{
+        "country":null
+      }
+    }
+  },
+  "fk_rental_customer":[{
+      "rental_id":null,
+      "rental_date":null,
+      "return_date":null,
+      "fk_rental_inventory":{
+        "store_id":null,
+        "fk_inventory_film":{
+          "title":null,
+          "rental_rate":null,
+          "rental_duration":null
         }
-    },
-    "fk_rental_customer": [{
-        "rental_id": null,
-        "rental_date": null,
-        "return_date": null,
-        "fk_rental_inventory": {
-            "store_id": null,
-            "fk_inventory_film": {
-                "title": null,
-                "rental_rate": null,
-                "rental_duration": null
-            }
-        }
-    }],
-    "fk_payment_customer": [{
-        "rental_id": null,
-        "payment_date": null,
-        "amount": null
-    }]
+      }
+    }
+  ],
+  "fk_payment_customer":[{
+      "rental_id":null,
+      "payment_date":null,
+      "amount":null
+    }
+  ]
 }
                     </textarea>
                 </td>
@@ -130,14 +132,19 @@
         <script type="text/javascript">
             (function () {
 
+                function validateJSON(txt){
+                    var o = YAHOO.lang.JSON.parse(txt);
+                    var t = YAHOO.lang.JSON.stringify(o, null, 2);
+                    return t;
+                }
+            
                 function setResult(v){
-                    var txtResult = document.getElementById("txtResult");
-                    txtResult.value = v;
+                    document.getElementById("txtResult").value = v;
                 }
 
                 function doMQLReadRequest(query){
-                    setResult("");
-                    var url = "index.php?query=" + encodeURIComponent("{\"query\":" + query + "}");
+                    var queryEnvelope = "{\"query\":" + query + ", \"debug_info\": true}";
+                    var url = "index.php?query=" + encodeURIComponent(queryEnvelope);
                     YAHOO.util.Connect.asyncRequest("GET", url, {
                         "success": handleMQLReadResponse,
                         "failure": handleMQLReadFailure
@@ -152,15 +159,31 @@
                 }
                 
                 function handleMQLReadResponse(response){
-                    var o = YAHOO.lang.JSON.parse(response.responseText);
-                    var t = YAHOO.lang.JSON.stringify(o, null, 2);
+                    var t, rt = response.responseText;
+                    try {
+                        t = validateJSON(rt);                        
+                    } catch(e) {
+                        t = "Error in response:\n" + e + 
+                            "\nRaw responseText:\n\n" + rt;
+                    }
                     setResult(t);
                 }
 
                 var rst = document.getElementById("txtResult");
                 
                 document.getElementById("btnExecute").onclick = function(){
-                    doMQLReadRequest(document.getElementById("txtQuery").value);
+                    setResult("");
+                    var txtQuery = document.getElementById("txtQuery");
+                    var query = txtQuery.value;
+                    txtQuery.value = "";
+                    try {
+                        var json = validateJSON(query);
+                        txtQuery.value = json;
+                        doMQLReadRequest(json);
+                    } catch (e) {
+                        setResult(e);
+                        txtQuery.value = query;
+                    }
                 }
             })();
         </script>
