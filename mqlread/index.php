@@ -3,6 +3,17 @@ set_include_path(
     get_include_path()
 .   PATH_SEPARATOR.'../php'
 );
+/**
+*   Benchmarking
+*/
+$callstack = array();
+function callstack_push($name){
+    global $callstack;
+    $callstack[] = array(
+        'name'  =>  $name
+    ,   'start' =>  microtime(TRUE)
+    );
+}
 /*****************************************************************************
 *   General Functions
 ******************************************************************************/
@@ -89,7 +100,7 @@ function get_type_from_schema($domain, $type){
     return $metadata['domains'][$domain]['types'][$type];
 }
 
-function process_mql_object($mql_object, &$parent){
+function process_mql_object(&$mql_object, &$parent){
     $object_vars = get_object_vars($mql_object);    
     $properties = array();
     $parent['properties'] = &$properties;
@@ -131,7 +142,8 @@ function process_mql_object($mql_object, &$parent){
         }
         $property_qualifier = $property['qualifier'];
         $property_name      = $property['name'];
-        switch($property['name']){
+        
+        switch($property_name){
             case 'type':
             case 'creator':
             case 'guid':
@@ -151,12 +163,18 @@ function process_mql_object($mql_object, &$parent){
             case 'sort':
                 if ($property_qualifier==='' ) {
                     $property['is_directive'] = TRUE;
+                    switch ($property_name) {
+                        case 'optional':
+                            $parent['optional'] = ($property_value===TRUE || $property_value==='optional');
+                            break;
+                    }
                 }
             default:
                 if ($property_qualifier === '/type/object'){
                     exit('"'.$property_name.'" is not a universal property, and may not have the qualifier "'.$property_qualifier.'".');
                 }
         }
+        
         if ($property['qualifier'] === '/type/object'
         &&  $property_name         === 'type'
         &&  $property_value        !== NULL
@@ -285,25 +303,63 @@ function get_p_name(){
     return 'P'.(++$p_id);
 }
 
-function get_from_clause($schema, $t_alias, $child_t_alias, $schema_name, $table_name, &$query){
-    $direction = $schema['direction'];
-    $from = &$query['from'];
-    switch ($direction) {
-        case 'referencing->referenced':
-            $from .= "\n".($schema['nullable']? 'LEFT' : 'INNER').' JOIN ';
-            break;
-        case 'referenced<-referencing':
-            $from .= "\nINNER JOIN ";
-            $select = &$query['select'];
-            $order_by = &$query['order_by'];
-            $merge_into = &$query['merge_into'];
-            $merge_into_columns = &$merge_into['columns'];
-            break;
+function is_optional($mql_node){
+    $value = $mql_node['value'];
+    if ($value===NULL){
+        $optional = TRUE;
     }
+    else 
+    if (is_array($value)) {
+        switch (count($value)) {
+            case 0:
+                $optional = TRUE;
+                break;
+            case 1:
+                $optional = is_optional($mql_node);
+                break;
+            default:
+                //shouldn't happen
+        }
+    }
+    else 
+    if(is_object($value)) {
+        $object_vars = get_object_vars($value);
+        if ($optional_directive = $object_vars['optional']) {
+            switch ($optional_directive) {
+                case 'optional':
+                case TRUE:
+                    $optional = TRUE;
+            }
+        }
+    }
+    return $optional;
+}
 
-    //set up the join condition
+function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $table_name, &$query){
+    $schema = $mql_node['schema'];
+    $from = &$query['from'];
     $join_condition = '';
-    if ($direction){
+    if ($direction = $schema['direction']) {
+        $from .= "\n";        
+        if ($mql_node['outer_join']===TRUE      //if we already are in an outer join branch, continue to outer join
+        ||  is_optional($mql_node)===TRUE) {    //if this is an optional mql node, start an outer join branch
+            $from .= 'LEFT';
+            $mql_node['outer_join'] = TRUE;
+        }
+        else {
+            $from .= 'INNER';
+        } 
+        $from .= ' JOIN ';
+        switch ($direction) {
+            case 'referencing->referenced':                
+                break;
+            case 'referenced<-referencing':
+                $select = &$query['select'];
+                $order_by = &$query['order_by'];
+                $merge_into = &$query['merge_into'];
+                $merge_into_columns = &$merge_into['columns'];
+                break;
+        }
         foreach ($schema['join_condition'] as $columns) {
             if ($join_condition==='') {
                 $join_condition = "\nON";
@@ -346,7 +402,7 @@ function map_mql_to_pdo_type($mql_type){
             break;
         case '/type/datetime':
         case '/type/text':
-        case '/type/float': //this feels so wrong.
+        case '/type/float': //this feels so wrong, but PDO doesn't seem t support any decimal/float type :(
             $pdo_type = PDO::PARAM_STR;
             break;
         case '/type/int':
@@ -490,13 +546,11 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
     }
     
     $t_alias = get_t_alias();
-        
-    $schema = &$mql_node['schema'];
 
-    get_from_clause($schema, $t_alias, $child_t_alias, $schema_name, $table_name, $query);
-    
+    get_from_clause($mql_node, $t_alias, $child_t_alias, $schema_name, $table_name, $query);
     if ($properties = &$mql_node['properties']) { 
         foreach ($properties as $property_name => &$property) {
+            $property['outer_join'] = $mql_node['outer_join'];
             $schema = $property['schema'];
             if ($direction = $schema['direction']) {            
                 if ($direction === 'referenced<-referencing'){
@@ -551,6 +605,7 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
         }
         $column_name = $default_property['column_name'];
         $property = &$mql_node;
+        $schema = &$property;
         $schema['type'] = $default_property['type'];
         if ($property['is_filter']) {        
             handle_filter_property($where, $params, $t_alias, $column_name, $property);
@@ -613,9 +668,15 @@ function &execute_sql($statement_text, $params){
 }
 
 function get_query_sql($query){
-    $sql = '';
-    foreach ($query['select'] as $column_ref => $column_alias) {
-        $sql .= ($sql===''? 'SELECT ' : "\n, ").$column_ref.' AS '.$column_alias;
+    $sql = 'SELECT';
+    
+    if ($select_columns = $query['select']) {
+        foreach ($select_columns as $column_ref => $column_alias) {
+            $sql .= ($sql==='SELECT'? '  ' : "\n, ").$column_ref.' AS '.$column_alias;
+        }
+    }
+    else {
+        $sql .= ' NULL';
     }
     $sql .= "\n".$query['from']."\n".$query['where']."\n".$query['order_by'];
     return $sql;
@@ -680,8 +741,10 @@ function fill_result_object(&$mql_node, $query_index, $data, &$result_object){
             }
             else
             if ($alias = $property['alias']) {
-                if ($explicit_type_conversion) {                    
-                    settype($data[$alias], map_mql_to_php_type($property['schema']['type']));
+                if ($explicit_type_conversion) {
+                    if (!is_null($data[$alias])) {
+                        settype($data[$alias], map_mql_to_php_type($property['schema']['type']));
+                    }
                 }
                 $result_object[$key] = $data[$alias];
             }
@@ -755,6 +818,15 @@ function merge_results(&$queries, $query_index, $key, $from, $to){
     merge_result_object($target_query['mql_node'], $merge_target, $query_index, $query['results'], $from, $to);
 }
 
+/**
+*   execute_queries(&$queries)
+*   Executes multiple SQL queries
+*
+*   arguments:
+*   queries:    an arrra
+*
+*   return:
+*/
 function execute_queries(&$queries) {
     foreach($queries as $query_index => &$query){
         $indexes = &$query['indexes'];
@@ -794,8 +866,18 @@ function execute_queries(&$queries) {
 /*****************************************************************************
 *   Handle request
 ******************************************************************************/
+
+/**
+*   handle_query($query)
+*   Executes a single MQL query.
+*   
+*   arguments:
+*   query:      a mql query object (decoded from JSON)
+*
+*   return:     a result envelope (as associative PHP array)
+*/
 function handle_query($query){
-    global $debug_info;
+    global $debug_info, $callstack;
     //check if the query parameter is valid MQL query envelope
     if (!property_exists($query, 'query')) {
         exit('MQL query envelope must have a query attribute');
@@ -822,10 +904,20 @@ function handle_query($query){
                                 );
         }
         $return_value['sql'] = $sql_statements;
+        $return_value['timing'] = $callstack;
     }
     return $return_value;
 }
 
+/**
+*   handle_queries($queries)
+*   Executes multiple MQL queries.
+*   
+*   arguments:
+*   queries:    an associative array of mql query objects (decoded from JSON)
+*
+*   return:     an associative array of result envelopes
+*/
 function handle_queries($queries){
     $queries = get_object_vars($queries);
     $results = array(
@@ -882,8 +974,9 @@ $debug_info = $query_decode->debug_info;
 /*****************************************************************************
 *   Schema
 ******************************************************************************/
-//$metadata_file_name = '../schema/schema.json';
-$metadata_file_name = '../schema/schema-sqlite.json';
+//$metadata_file_name = '../schema/boa-schema.json';
+$metadata_file_name = '../schema/schema.json';
+//$metadata_file_name = '../schema/schema-sqlite.json';
 
 if (!file_exists($metadata_file_name)){
     exit('Cannot find schema file "'.$metadata_file_name.'".');
@@ -898,9 +991,10 @@ if (!$metadata = json_decode($metadata_file_contents, TRUE)) {
 /*****************************************************************************
 *   Database (PDO)
 ******************************************************************************/
-//$connection_file_name = '../schema/connection-mysql.json';
+//$connection_file_name = '../schema/boa-connection.json';
+$connection_file_name = '../schema/connection-mysql.json';
 //$connection_file_name = '../schema/connection-oracle.json';
-$connection_file_name = '../schema/connection-sqlite.json';
+//$connection_file_name = '../schema/connection-sqlite.json';
 
 if (!file_exists($connection_file_name)){
     exit('Cannot find connection file "'.$connection_file_name.'".');
@@ -924,6 +1018,8 @@ $pdo = new PDO(
 ,   $pdo_config['driver_options']
 );
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$pdo->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, FALSE);
+$pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, TRUE);
 $explicit_type_conversion = $connection['explicit_type_conversion'];
 /*****************************************************************************
 *   Main
@@ -936,5 +1032,4 @@ else {
 }
 $result['status'] = '200 OK';
 $result['transaction_id'] = 'not implemented';
-
 echo json_encode($result);

@@ -7,9 +7,11 @@ select      concat(
             ,   '        "username": "', substring_index(current_user(), '@', 1),'",\n'
             ,   '        "password": "', substring_index(current_user(), '@', 1),'",\n'
             ,   '        "driver_options": {\n'
-            ,   '        },\n'
-            ,   '        "explicit_type_conversion": true\n'
+            ,   '        }\n'
             ,   '    },\n'
+            ,   '    "explicit_type_conversion": true\n'
+            ,   '\n}'
+            ,   '{\n'
             ,   '    "domains": {\n'
             ,   group_concat(
                     json
