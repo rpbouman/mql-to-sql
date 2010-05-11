@@ -304,33 +304,39 @@ function get_p_name(){
 }
 
 function is_optional($mql_node){
-    $value = $mql_node['value'];
-    if ($value===NULL){
-        $optional = TRUE;
-    }
-    else 
-    if (is_array($value)) {
-        switch (count($value)) {
-            case 0:
+    if (is_array($mql_node)) {
+        if (array_key_exists('properties', $mql_node)){
+            $properties = $mql_node['properties'];
+            if (count($properties)===0){
                 $optional = TRUE;
-                break;
-            case 1:
-                $optional = is_optional($mql_node);
-                break;
-            default:
-                //shouldn't happen
-        }
-    }
-    else 
-    if(is_object($value)) {
-        $object_vars = get_object_vars($value);
-        if ($optional_directive = $object_vars['optional']) {
-            switch ($optional_directive) {
-                case 'optional':
-                case TRUE:
-                    $optional = TRUE;
+            }
+            else {
+                $optional_property = $properties['optional'];
+                $value = $optional_property['value'];
+                switch ($value) {
+                    case TRUE:
+                    case 'optional':
+                        $optional = TRUE;
+                }
             }
         }
+        else 
+        if (array_key_exists('entries', $mql_node)){
+            $entries = $mql_node['entries'];
+            if (count($entries)===NULL){
+                $optional = TRUE;
+            }
+        }
+        else 
+        if (array_key_exists('value', $mql_node)) {
+            $value = $mql_node['value'];
+            if ($value===NULL) {  
+                $optional = TRUE;
+            }
+        }
+    }
+    else {
+        print_r("\ntype is ".gettype($mql_node)."\n");
     }
     return $optional;
 }
@@ -338,18 +344,17 @@ function is_optional($mql_node){
 function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $table_name, &$query){
     $schema = $mql_node['schema'];
     $from = &$query['from'];
+    $from_line = array();
     $join_condition = '';
     if ($direction = $schema['direction']) {
-        $from .= "\n";        
         if ($mql_node['outer_join']===TRUE      //if we already are in an outer join branch, continue to outer join
         ||  is_optional($mql_node)===TRUE) {    //if this is an optional mql node, start an outer join branch
-            $from .= 'LEFT';
+            $from_line['join_type'] = 'LEFT';
             $mql_node['outer_join'] = TRUE;
         }
         else {
-            $from .= 'INNER';
+            $from_line['join_type'] = 'INNER';
         } 
-        $from .= ' JOIN ';
         switch ($direction) {
             case 'referencing->referenced':                
                 break;
@@ -362,7 +367,7 @@ function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $ta
         }
         foreach ($schema['join_condition'] as $columns) {
             if ($join_condition==='') {
-                $join_condition = "\nON";
+                $join_condition = "ON";
             }
             else {
                 $join_condition .= "\nAND";
@@ -385,11 +390,11 @@ function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $ta
             }
         }            
     }
-    //schema_name can be explicitly set to the empty string so the default database is used.
-    if ($schema_name !== ''){
-        $from .= $schema_name.'.';
+    $from_line['table'] = ($schema_name? $schema_name.'.' : '').$table_name.' '.$t_alias;
+    if ($join_condition) {
+        $from_line['join_condition'] = $join_condition;
     }
-    $from .= $table_name.' '.$t_alias.$join_condition;    
+    $from[] = $from_line;
 }
 
 function map_mql_to_pdo_type($mql_type){
@@ -442,8 +447,21 @@ function add_parameter_for_property(&$where, &$params, $property){
     }
 }
 
-function handle_filter_property(&$where, &$params, $t_alias, $column_name, $property){
-    $where .= ($where===''? 'WHERE': "\nAND").' '.$t_alias.'.'.$column_name;
+function handle_filter_property(&$queries, $query_index, $t_alias, $column_name, $property){
+    $query = &$queries[$query_index];
+    $from = &$query['from'];
+    $params = &$query['params'];
+    
+    $num_from_lines = count($from);
+    if ($num_from_lines > 1){
+        $from_line = &$from[$num_from_lines -  1];
+        $from_or_where = &$from_line['join_condition'];
+        $from_or_where .= "\nAND ${t_alias}.${column_name}";
+    } 
+    else {
+        $from_or_where = &$query['where'];
+        $from_or_where .= ($where? "\nAND" : 'WHERE').' '.$t_alias.'.'.$column_name;
+    }
     
     //prepare right hand side of the filter expression
     if ($operator = $property['operator']) {
@@ -455,26 +473,26 @@ function handle_filter_property(&$where, &$params, $t_alias, $column_name, $prop
                 break;
             case '<': case '>': case '<=': case '>=': case '!=': 
             case '=': //note that = is an extension. Silly it's not standard.
-                $where .= ' '.$operator.' ';
+                $from .= ' '.$operator.' ';
                 break;
             case '|=':
-                $where .= ' IN (';
+                $from .= ' IN (';
                 $add_closing_parenthesis = TRUE;
                 break;
             case '?=':  //extension. Ordinary database LIKE
-                $where .= ' LIKE ';
+                $from .= ' LIKE ';
                 break;
         }
     }
     else {
         //If no operator is specified, 
         //the comparison is automatically with equals.
-        $where .= ' = ';
+        $from_or_where .= ' = ';
     }
     //prepare the right hand side of the comparison expression
-    add_parameter_for_property(&$where, &$params, $property);    
+    add_parameter_for_property(&$from_or_where, &$params, $property);
     if ($add_closing_parenthesis) {
-        $where .= ')';
+        $from_or_where .= ')';
     }
 }
 
@@ -501,10 +519,10 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
         $prev_query = $queries[$merge_into['query_index']];
         $query = array(
             'select'        =>  array()
-        ,   'from'          =>  $prev_query ? $prev_query['from'] : "FROM "
-        ,   'where'         =>  $prev_query ? $prev_query['where'] : ''
+        ,   'from'          =>  array()
+        ,   'where'         =>  ''
         ,   'order_by'      =>  ''
-        ,   'params'        =>  $prev_query ? $prev_query['params'] : array()
+        ,   'params'        =>  array()
         ,   'mql_node'      =>  &$mql_node
         ,   'indexes'       =>  array()
         ,   'merge_into'    =>  $merge_into
@@ -589,7 +607,7 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
             else 
             if ($column_name = $schema['column_name']){
                 if ($property['is_filter']) {        
-                    handle_filter_property($where, $params, $t_alias, $column_name, $property);
+                    handle_filter_property($queries, $query_index, $t_alias, $column_name, $property);
                 }
                 else {
                     handle_non_filter_property($t_alias, $column_name, $select, $property);
@@ -678,14 +696,23 @@ function get_query_sql($query){
     else {
         $sql .= ' NULL';
     }
-    $sql .= "\n".$query['from']."\n".$query['where']."\n".$query['order_by'];
+    foreach ($query['from'] as $index => $from_line) {
+        $from_or_join = $index && (isset($from_line['join_type']));
+        $sql .= "\n".($from_or_join ? $from_line['join_type'].' JOIN ' : 'FROM ').$from_line['table'];
+        if ($from_or_join){
+            $sql .= "\n".$from_line['join_condition'];
+        }
+    }
+    $sql .= ($query['where']? "\n".$query['where'] : '')
+    .       ($query['order_by']? "\n".$query['order_by'] : '');
     return $sql;
     
 }
 
-function execute_query($query){
-    $sql = get_query_sql($query);
-    return execute_sql($sql, $query['params']);
+function execute_sql_query(&$sql_query){
+    $sql = get_query_sql($sql_query);
+    $sql_query['sql'] = $sql;
+    return execute_sql($sql, $sql_query['params']);
 }
 
 function get_result_object(&$mql_node, $query_index, &$result_object=NULL, $key=NULL){
@@ -707,7 +734,7 @@ function get_result_object(&$mql_node, $query_index, &$result_object=NULL, $key=
     else 
     if ($mql_node['properties']) {
         foreach ($mql_node['properties'] as $property_key => $property) {
-            if ($property['operator']) {
+            if ($property['operator'] || $property['is_directive']) {
                 continue;
             }
             $value = $property['value'];
@@ -818,48 +845,99 @@ function merge_results(&$queries, $query_index, $key, $from, $to){
     merge_result_object($target_query['mql_node'], $merge_target, $query_index, $query['results'], $from, $to);
 }
 
+function create_single_column_inlist_entry($value, $key, $inlist){
+    global $pdo;
+    if ($inlist!=='') {
+        $inlist .= ',';
+    }
+    if (is_string($key)) {
+        $inlist .= $pdo->quote($key);
+    }
+    else {
+        $inlist .= $key;
+    }
+}
+
+function create_inlist_for_index(&$index) {    
+    $inlist = '';
+    $entries = $index['entries'];
+    if (count($index['columns'])===1){
+        array_walk($entries, 'create_single_column_inlist_entry', &$inlist);
+    }
+    else {
+        //TODO: in list for multiple columns
+    }
+    $inlist = ' IN ('.$inlist.')';
+    $index['inlist'] = $inlist;
+}
+
+function create_inlists_for_indexes(&$indexes) {
+    foreach ($indexes as $index_name => &$index) {
+        create_inlist_for_index(&$index);
+    }
+}
+
 /**
-*   execute_queries(&$queries)
+*   execute_sql_queries(&$sql_queries)
 *   Executes multiple SQL queries
 *
 *   arguments:
-*   queries:    an arrra
+*   sql_queries:    an arrra
 *
 *   return:
 */
-function execute_queries(&$queries) {
-    foreach($queries as $query_index => &$query){
-        $indexes = &$query['indexes'];
-        $sql = get_query_sql($query);
-        $query['sql'] = $sql;
-        $mql_node = $query['mql_node'];
-        get_result_object($mql_node, $query_index);
+function execute_sql_queries(&$sql_queries) {
+    foreach($sql_queries as $sql_query_index => &$sql_query){
+    
+        $indexes = &$sql_query['indexes'];
+                
+        $mql_node = $sql_query['mql_node'];
+        get_result_object($mql_node, $sql_query_index);
         $result_object = $mql_node['result_object'];
-        if ($merge_into = $query['merge_into']) {
+        
+        if ($merge_into = $sql_query['merge_into']) {
             $merge_into_columns = $merge_into['columns'];
             $merge_into_values_new = array();
             $merge_into_values_old = array();
             $offset = -1;
+            
+            $extra_where_condition = '';
+            $select_columns = $sql_query['select'];
+            foreach ($merge_into_columns as $merge_into_column) {
+                if ($extra_where_condition !== '') {
+                    $extra_where_condition .= ',';
+                }
+                $extra_where_condition .= array_search($merge_into_column, $select_columns, TRUE);
+            }
+            if (count($merge_into_columns) > 1) {
+                $extra_where_condition = '('.$extra_where_condition.')';
+            }
+            $index = $sql_queries[$merge_into['query_index']]['indexes'][$merge_into['index']];
+            $extra_where_condition .= $index['inlist'];
+            $where = &$sql_query['where'];
+            $where .= ($where===''? 'WHERE ' : "\nAND ").$extra_where_condition;
         }
-        $result = &$query['results'];
-        $rows = execute_query($query);
+        
+        $result = &$sql_query['results'];
+        $rows = execute_sql_query($sql_query);
         foreach($rows as $row_index => $row){
             if ($merge_into){            
                 foreach ($merge_into_columns as $col_index => $alias){
                     $merge_into_values_new[$col_index] = $row[$alias];
                 }
                 if ($merge_into_values_new !== $merge_into_values_old){
-                    merge_results(&$queries, $query_index, $merge_into_values_old, $offset, $row_index);
+                    merge_results(&$sql_queries, $sql_query_index, $merge_into_values_old, $offset, $row_index);
                     $offset = $row_index;
                 }
                 $merge_into_values_old = $merge_into_values_new;
             }
-            fill_result_object($mql_node, $query_index, $row, $result_object);
+            fill_result_object($mql_node, $sql_query_index, $row, $result_object);
             $result[$row_index] = $result_object;
             add_entry_to_indexes($indexes, $row_index, $row);
         }
-        if ($merge_into_values_old) {
-            merge_results(&$queries, $query_index, $merge_into_values_old, $offset, $row_index);
+        create_inlists_for_indexes(&$indexes);
+        if (count($merge_into_values_old)) {
+            merge_results(&$sql_queries, $sql_query_index, $merge_into_values_old, $offset, $row_index);
         }
     }
 }
@@ -868,28 +946,28 @@ function execute_queries(&$queries) {
 ******************************************************************************/
 
 /**
-*   handle_query($query)
+*   handle_query($mql_query)
 *   Executes a single MQL query.
 *   
 *   arguments:
-*   query:      a mql query object (decoded from JSON)
+*   $mql_query: a mql query object (decoded from JSON)
 *
 *   return:     a result envelope (as associative PHP array)
 */
-function handle_query($query){
+function handle_query($mql_query_envelop){
     global $debug_info, $callstack;
     //check if the query parameter is valid MQL query envelope
-    if (!property_exists($query, 'query')) {
+    if (!property_exists($mql_query_envelop, 'query')) {
         exit('MQL query envelope must have a query attribute');
     }
-    $mql = $query->query;
+    $mql_query = $mql_query_envelop->query;
 
     $tree = array();
     reset_ids();
-    process_mql($mql, $tree);
-    generate_sql($tree, $queries, 0);
-    execute_queries($queries);
-    $result = &$queries[0]['results'];
+    process_mql($mql_query, $tree);
+    generate_sql($tree, $sql_queries, 0);    
+    execute_sql_queries($sql_queries);
+    $result = &$sql_queries[0]['results'];
     //get the sql statements out for debugging purposes
     $sql_statements = array();
     $return_value = array(
@@ -897,10 +975,10 @@ function handle_query($query){
     ,   'result'    =>  $result
     );
     if ($debug_info) {
-        foreach ($queries as $query_index => $query) {
+        foreach ($sql_queries as $sql_query_index => $sql_query) {
             $sql_statements[] = array(
-                                    'statement' =>  $query['sql']
-                                ,   'params'    =>  $query['params']
+                                    'statement' =>  $sql_query['sql']
+                                ,   'params'    =>  $sql_query['params']
                                 );
         }
         $return_value['sql'] = $sql_statements;
