@@ -1,0 +1,139 @@
+=Sample Queries=
+Here are a few sample queries that work already. You can test them in the [http://mql.qbmetrix.com/mqlread/mql-to-sql-query-editor.php online demo query editor].
+===Retrieve all films===
+MQL:
+{{{
+[{
+  "type": "/sakila/film",
+  "film_id": null,
+  "title": null
+}]
+}}}
+Equivalent SQL:
+{{{
+SELECT '/sakila/film', film_id, title
+FROM sakila.film
+}}}
+===Retrieve a film (by id) ===
+MQL:
+{{{
+{
+  "type": "/sakila/film",
+  "film_id": 1,
+  "title": null
+}
+}}}
+Equivalent SQL:
+{{{
+SELECT '/sakila/film', 1, title
+FROM sakila.film
+WHERE film_id = 1
+}}}
+===Retrieve a specific collection of films (by id) ===
+MQL:
+{{{
+[{
+  "type": "/sakila/film",
+  "film_id|=": [1,2,3],
+  "title": null
+}]
+}}}
+Equivalent SQL:
+{{{
+SELECT '/sakila/film', title
+FROM sakila.film
+WHERE film_id IN (1,2,3)
+}}}
+===Retrieve a film (by title) along with it's language===
+MQL:
+{{{
+{
+  "type": "/sakila/film",
+  "film_id": null,
+  "title": "ACADEMY DINOSAUR",
+  "fk_film_language": {
+    "language_id": null,
+    "language_name": null
+  }
+}
+}}}
+Equivalent SQL:
+{{{
+SELECT '/sakila/film', f.film_id, 'ACADEMY DINOSAUR',
+       l.language_id, l.language
+FROM sakila.film f
+INNER JOIN sakila.language l
+ON f.language_id = l.language_id
+WHERE f.title = 'ACADEMY DINOSAUR'
+}}}
+===Retrieve a film (by title) along with it's language (shorthand) ===
+MQL:
+{{{
+{
+  "type": "/sakila/film",
+  "film_id": null,
+  "title": "ACADEMY DINOSAUR",
+  "fk_film_language": null
+}
+}}}
+Equivalent SQL:
+{{{
+SELECT '/sakila/film', f.film_id, 'ACADEMY DINOSAUR',
+       l.language_id, l.language
+FROM sakila.film f
+INNER JOIN sakila.language l
+ON f.language_id = l.language_id
+WHERE f.title = 'ACADEMY DINOSAUR'
+}}}
+===Retrieve a film, it's language, and the id's  of its actors===
+{{{
+{
+  "type": "/sakila/film",
+  "film_id": 1,
+  "title": null,
+  "fk_film_language": null,
+  "fk_film_actor_film": [{
+    "actor_id": null
+  }]
+}
+}}}
+===Retrieve a film, it's language, and its actors===
+{{{
+{
+  "type": "/sakila/film",
+  "film_id": 1,
+  "title": null,
+  "fk_film_language": null,
+  "fk_film_actor_film": [{
+    "fk_film_actor_actor":{
+      "actor_id": null,
+      "first_name": null,
+      "last_name": null
+    }
+  }]
+}
+}}}
+===Retrieve a film, it's language, its actors, and its inventory items===
+{{{
+{
+  "type": "/sakila/film",
+  "film_id": 1,
+  "title": null,
+  "fk_film_language": null,
+  "fk_film_actor_film": [
+    {
+      "fk_film_actor_actor": {
+        "actor_id": null,
+        "first_name": null,
+        "last_name": null
+      }
+    }
+  ],
+  "fk_inventory_film": [
+    {
+      "inventory_id": null,
+      "store_id": null
+    }
+  ]
+}
+}}}
