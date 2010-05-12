@@ -11,7 +11,7 @@ function callstack_push($name){
     global $callstack;
     $callstack[] = array(
         'name'  =>  $name
-    ,   'start' =>  microtime(TRUE)
+    ,   'microtime' =>  microtime()
     );
 }
 /*****************************************************************************
@@ -757,12 +757,12 @@ function fill_result_object(&$mql_node, $query_index, $data, &$result_object){
         return;
     }
 
-    if ($mql_node['entries']) {
-        fill_result_object($mql_node['entries'], $query_index, $data, &$result_object[0]);
+    if ($entries = &$mql_node['entries']) {
+        fill_result_object($entries, $query_index, $data, &$result_object[0]);
     }
     else
-    if ($properties = $mql_node['properties']) {
-        foreach ($result_object as $key => $value) {        
+    if ($properties = &$mql_node['properties']) {
+        foreach ($result_object as $key => $value) {
             $property = $properties[$key];
             if (is_object($value) || is_array($value)){
                 fill_result_object($property, $query_index, $data, &$result_object[$key]);
@@ -815,6 +815,9 @@ function merge_result_object(&$mql_node, &$result_object, $query_index, &$data, 
     else
     if ($properties = $mql_node['properties']) {
         foreach ($properties as $property_key => $property) {
+            if ($property['operator']) {
+                continue;
+            }
             if ($property['query_index']===$query_index) {
                 $result_object[$property_key] = array();
                 $target = &$result_object[$property_key];
@@ -841,8 +844,7 @@ function merge_results(&$queries, $query_index, $key, $from, $to){
     $target_query_index = $merge_into['query_index'];
     $target_query = &$queries[$target_query_index];
     $index_name = $merge_into['index'];
-    $merge_target = &get_entry_from_index(&$target_query, $index_name, $key);
-    
+    $merge_target = &get_entry_from_index(&$target_query, $index_name, $key);    
     merge_result_object($target_query['mql_node'], $merge_target, $query_index, $query['results'], $from, $to);
 }
 
@@ -864,7 +866,6 @@ function create_inline_table_for_index_entry(&$entries, $columns, $column_index,
         }
     }    
 }
-
 
 function create_inline_table_for_index(&$index){
     $statement = '';
@@ -897,7 +898,6 @@ function execute_sql_queries(&$sql_queries) {
         $mql_node = $sql_query['mql_node'];
         get_result_object($mql_node, $sql_query_index);
         $result_object = $mql_node['result_object'];
-        
         if ($merge_into = $sql_query['merge_into']) {
             $merge_into_columns = $merge_into['columns'];
             $select_columns = $sql_query['select'];
@@ -963,8 +963,9 @@ function execute_sql_queries(&$sql_queries) {
 *
 *   return:     a result envelope (as associative PHP array)
 */
-function handle_query($mql_query_envelop){
+function handle_query($mql_query_envelop, $query_key=0){
     global $debug_info, $callstack;
+    callstack_push('begin query #'.$query_key);
     //check if the query parameter is valid MQL query envelope
     if (!property_exists($mql_query_envelop, 'query')) {
         exit('MQL query envelope must have a query attribute');
@@ -991,6 +992,7 @@ function handle_query($mql_query_envelop){
                                 );
         }
         $return_value['sql'] = $sql_statements;
+        callstack_push('end query #'.$query_key);
         $return_value['timing'] = $callstack;
     }
     return $return_value;
@@ -1011,7 +1013,7 @@ function handle_queries($queries){
         'code' =>  '/api/status/ok'
     );
     foreach ($queries as $query_key => $query){
-        $result = handle_query($query);
+        $result = handle_query($query, $query_key);
         $results[$query_key] = $result;
     }
     return $results;
