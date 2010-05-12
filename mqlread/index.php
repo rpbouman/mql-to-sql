@@ -624,7 +624,7 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
         }
         $column_name = $default_property['column_name'];
         $property = &$mql_node;
-        $schema = &$property;
+        $schema = &$property['schema'];
         $schema['type'] = $default_property['type'];
         if ($property['is_filter']) {        
             handle_filter_property($where, $params, $t_alias, $column_name, $property);
