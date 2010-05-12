@@ -1,3 +1,6 @@
+<?php
+include 'config.php';
+?>
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
  "http://www.w3.org/TR/html4/loose.dtd">
 <html>
@@ -40,6 +43,7 @@
             
             .top {
                 height: 35px;
+                font-size: 10pt;
             }
             
             .left {
@@ -60,21 +64,56 @@
         <table>
             <tr>
                 <td class="top" colspan="2">
-                    <a href="http://code.google.com/p/mql-to-sql/" target="mql-to-sql">Project: mql-to-sql</a>
+                    <a  href="http://code.google.com/p/mql-to-sql/" 
+                        target="mql-to-sql"
+                        title="mql-to-sql project homepage hosted at google code."
+                    >Project: mql-to-sql</a>
                     |
-                    <a href="http://www.freebase.com/docs/data" target="freebase">About Freebase</a>
+                    <a
+                        href="http://www.freebase.com/docs/data"
+                        target="freebase"
+                        title="Homepage of Freebase, the open collaborative data project that uses MQL as its native query language, and main source of inspiration for this project."
+                    >Freebase</a>
                     |
-                    <a href="http://www.freebase.com/docs/mql" target="freebase">MQL Reference</a>
+                    <a
+                        href="http://www.freebase.com/docs/mql"
+                        target="freebase"
+                        title="MQL reference. This is the most complete description of the MQL query language today. Note that mql-to-sql currently implements a subset of the MQL grammar, with some extensions."
+                    >MQL Reference</a>
                     |
-                    <a href="https://docs.google.com/viewer?url=http://download.freebase.com/MQLcheatsheet-081208.pdf" target="freebase">MQL Cheatsheet</a>
+                    <a
+                        href="https://docs.google.com/viewer?url=http://download.freebase.com/MQLcheatsheet-081208.pdf"
+                        target="freebase"
+                        title="MQL Cheatsheet provides a concise overview of MQL language features"
+                    >MQL Cheatsheet</a>
+                    |
+                    <a
+                        href="http://dev.mysql.com/doc/sakila/en/sakila.html"
+                        target="mql-to-sql"
+                        title="Documentation to the Sakila sample database. This query editor allows you to query this sample database using MQL."
+                    >Sakila Sample Database</a>
+                    |
+                    <a
+                        href="<?php echo($metadata_file_name);?>"
+                        target="mql-to-sql"
+                        title="The (automatically generated) map used to translate MQL to SQL against the Sakila sample database"
+                    >mql-to-sql Schema for Sakila</a>
                 </td>
             </tr>
             <tr>
                 <td class="left">
-                    <button type="button" id="btnExecute">Execute</button>
+                    <button 
+                        type="button"
+                        id="btnExecute"
+                        title="Hit this button to execute your MQL query against the Sakila sample database"
+                    >Execute</button>
                 </td>
                 <td class="right">
-                    <textarea id="txtQuery" rows="20">
+                    <textarea 
+                        id="txtQuery" 
+                        rows="20" 
+                        title="Type your MQL query here."
+                    >
 {
   "type":"/sakila/customer",
   "customer_id":1,
@@ -119,7 +158,11 @@
                 <td>
                 </td>
                 <td>
-                    <textarea id="txtResult" rows="20"></textarea>
+                    <textarea 
+                        id="txtResult" 
+                        rows="20"
+                        title="This is where the JSON result of you MQL query will be returned"
+                    ></textarea>
                 </td>
             </tr>
         </table>
@@ -129,10 +172,10 @@
 <!--        
         <script type="text/javascript" src="http://yui.yahooapis.com/combo?2.8.0r4/build/yahoo/yahoo.js&amp;2.8.0r4/build/event/event.js&amp;2.8.0r4/build/connection/connection_core.js&amp;2.8.0r4/build/json/json.js"></script> 
 -->
-        <script type="text/javascript" src="/yui/build/yahoo/yahoo.js"></script>
-        <script type="text/javascript" src="/yui/build/event/event.js"></script>
-        <script type="text/javascript" src="/yui/build/connection/connection_core.js"></script>
-        <script type="text/javascript" src="/yui/build/json/json.js"></script> 
+        <script type="text/javascript" src="<?php echo($yui_url);?>/build/yahoo/yahoo.js"></script>
+        <script type="text/javascript" src="<?php echo($yui_url);?>/build/event/event.js"></script>
+        <script type="text/javascript" src="<?php echo($yui_url);?>/build/connection/connection_core.js"></script>
+        <script type="text/javascript" src="<?php echo($yui_url);?>/build/json/json.js"></script> 
         
         <!-- Script for the query editor -->
         <script type="text/javascript">
@@ -150,7 +193,7 @@
 
                 function doMQLReadRequest(query){
                     var queryEnvelope = "{\"query\":" + query + ", \"debug_info\": true}";
-                    var url = "index.php?query=" + encodeURIComponent(queryEnvelope);
+                    var url = "index.php?query=" + encodeURIComponent(queryEnvelope.replace(/\s/g, ""));
                     YAHOO.util.Connect.asyncRequest("GET", url, {
                         "success": handleMQLReadResponse,
                         "failure": handleMQLReadFailure
