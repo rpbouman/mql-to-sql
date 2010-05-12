@@ -390,7 +390,8 @@ function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $ta
             }
         }            
     }
-    $from_line['table'] = ($schema_name? $schema_name.'.' : '').$table_name.' '.$t_alias;
+    $from_line['table'] = ($schema_name? $schema_name.'.' : '').$table_name;
+    $from_line['alias'] = $t_alias;
     if ($join_condition) {
         $from_line['join_condition'] = $join_condition;
     }
@@ -473,14 +474,14 @@ function handle_filter_property(&$queries, $query_index, $t_alias, $column_name,
                 break;
             case '<': case '>': case '<=': case '>=': case '!=': 
             case '=': //note that = is an extension. Silly it's not standard.
-                $from .= ' '.$operator.' ';
+                $from_or_where .= ' '.$operator.' ';
                 break;
             case '|=':
-                $from .= ' IN (';
+                $from_or_where .= ' IN (';
                 $add_closing_parenthesis = TRUE;
                 break;
             case '?=':  //extension. Ordinary database LIKE
-                $from .= ' LIKE ';
+                $from_or_where .= ' LIKE ';
                 break;
         }
     }
@@ -698,7 +699,7 @@ function get_query_sql($query){
     }
     foreach ($query['from'] as $index => $from_line) {
         $from_or_join = $index && (isset($from_line['join_type']));
-        $sql .= "\n".($from_or_join ? $from_line['join_type'].' JOIN ' : 'FROM ').$from_line['table'];
+        $sql .= "\n".($from_or_join ? $from_line['join_type'].' JOIN ' : 'FROM ').$from_line['table'].' '.$from_line['alias'];
         if ($from_or_join){
             $sql .= "\n".$from_line['join_condition'];
         }
@@ -845,35 +846,37 @@ function merge_results(&$queries, $query_index, $key, $from, $to){
     merge_result_object($target_query['mql_node'], $merge_target, $query_index, $query['results'], $from, $to);
 }
 
-function create_single_column_inlist_entry($value, $key, $inlist){
-    global $pdo;
-    if ($inlist!=='') {
-        $inlist .= ',';
-    }
-    if (is_string($key)) {
-        $inlist .= $pdo->quote($key);
-    }
-    else {
-        $inlist .= $key;
-    }
+function create_inline_table_for_index_entry(&$entries, $columns, $column_index, &$statement, &$row){
+    global $pdo, $single_row_from_clause;
+    foreach ($entries as $key => $value) {
+        $row    .=  ($row === ''? 'SELECT ' : ', ')
+                .   (is_string($key)? $pdo->quote($key) : $key)
+                .   ($statement === '' ? ' AS '.$columns[$column_index] : '')
+                ;
+
+        if (is_array($value)){
+            create_inline_table_for_index_entry($value, $columns, $column_index+1, $statement, $row);
+        }
+        else
+        if (is_int($value)) {
+            $statement .= ($statement==='' ? '' : "\nUNION ALL\n").$row.$single_row_from_clause;
+            $row = '';
+        }
+    }    
 }
 
-function create_inlist_for_index(&$index) {    
-    $inlist = '';
-    $entries = $index['entries'];
-    if (count($index['columns'])===1){
-        array_walk($entries, 'create_single_column_inlist_entry', &$inlist);
-    }
-    else {
-        //TODO: in list for multiple columns
-    }
-    $inlist = ' IN ('.$inlist.')';
-    $index['inlist'] = $inlist;
+
+function create_inline_table_for_index(&$index){
+    $statement = '';
+    $row = '';
+    create_inline_table_for_index_entry($index['entries'], $index['columns'], 0, $statement, $row);
+    $statement = "(\n$statement\n)";
+    $index['inline_table'] = $statement;
 }
 
-function create_inlists_for_indexes(&$indexes) {
-    foreach ($indexes as $index_name => &$index) {
-        create_inlist_for_index(&$index);
+function create_inline_tables_for_indexes(&$indexes){
+    foreach ($indexes as &$index) {
+        create_inline_table_for_index($index);
     }
 }
 
@@ -897,25 +900,31 @@ function execute_sql_queries(&$sql_queries) {
         
         if ($merge_into = $sql_query['merge_into']) {
             $merge_into_columns = $merge_into['columns'];
+            $select_columns = $sql_query['select'];
             $merge_into_values_new = array();
             $merge_into_values_old = array();
             $offset = -1;
-            
-            $extra_where_condition = '';
-            $select_columns = $sql_query['select'];
-            foreach ($merge_into_columns as $merge_into_column) {
-                if ($extra_where_condition !== '') {
-                    $extra_where_condition .= ',';
-                }
-                $extra_where_condition .= array_search($merge_into_column, $select_columns, TRUE);
+
+            $index_name = $merge_into['index'];
+            $index = $sql_queries[$merge_into['query_index']]['indexes'][$index_name];
+            $index_columns = $index['columns'];
+            $extra_from_line = array(
+                'table' => $index['inline_table']
+            ,   'alias' => $index_name
+            );
+            $join_condition = '';
+            $alias = $sql_query['from'][0]['alias'];
+            foreach ($index_columns as $position => $index_column) {
+                $join_condition .= ($join_condition==='' ? 'ON' : "\nAND").' '
+                                .   $index_name.'.'.$index_column.' = '
+                                .   array_search($merge_into_columns[$position], $select_columns, TRUE)
+                                ;
             }
-            if (count($merge_into_columns) > 1) {
-                $extra_where_condition = '('.$extra_where_condition.')';
-            }
-            $index = $sql_queries[$merge_into['query_index']]['indexes'][$merge_into['index']];
-            $extra_where_condition .= $index['inlist'];
-            $where = &$sql_query['where'];
-            $where .= ($where===''? 'WHERE ' : "\nAND ").$extra_where_condition;
+            $from = &$sql_query['from'];
+            $first_from_line = &$from[0];
+            $first_from_line['join_condition'] = $join_condition;
+            $first_from_line['join_type'] = 'INNER';
+            array_unshift($from, $extra_from_line);            
         }
         
         $result = &$sql_query['results'];
@@ -935,7 +944,7 @@ function execute_sql_queries(&$sql_queries) {
             $result[$row_index] = $result_object;
             add_entry_to_indexes($indexes, $row_index, $row);
         }
-        create_inlists_for_indexes(&$indexes);
+        create_inline_tables_for_indexes(&$indexes);
         if (count($merge_into_values_old)) {
             merge_results(&$sql_queries, $sql_query_index, $merge_into_values_old, $offset, $row_index);
         }
@@ -1099,6 +1108,7 @@ $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $pdo->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, FALSE);
 $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, TRUE);
 $explicit_type_conversion = $connection['explicit_type_conversion'];
+$single_row_from_clause = $connection['single_row_table'] ? ' FROM '.$connection['single_row_table'].' ' : '';
 /*****************************************************************************
 *   Main
 ******************************************************************************/
