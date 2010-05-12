@@ -193,7 +193,7 @@ include 'config.php';
 
                 function doMQLReadRequest(query){
                     var queryEnvelope = "{\"query\":" + query + ", \"debug_info\": true}";
-                    var url = "index.php?query=" + encodeURIComponent(queryEnvelope.replace(/\s/g, ""));
+                    var url = "index.php?query=" + encodeURIComponent(queryEnvelope);
                     YAHOO.util.Connect.asyncRequest("GET", url, {
                         "success": handleMQLReadResponse,
                         "failure": handleMQLReadFailure
@@ -226,9 +226,11 @@ include 'config.php';
                     var query = txtQuery.value;
                     txtQuery.value = "";
                     try {
-                        var json = validateJSON(query);
-                        txtQuery.value = json;
-                        doMQLReadRequest(json);
+                        var o = YAHOO.lang.JSON.parse(query);
+                        //for pretty printing, we add 2 spaces
+                        txtQuery.value = YAHOO.lang.JSON.stringify(o, null, 2);
+                        //for the actual request, we omit spaces (micro-optimization)
+                        doMQLReadRequest(YAHOO.lang.JSON.stringify(o, null, 0));
                     } catch (e) {
                         setResult(e);
                         txtQuery.value = query;
