@@ -1,8 +1,6 @@
 <?php
-set_include_path(
-    get_include_path()
-.   PATH_SEPARATOR.'../php'
-);
+include 'config.php';
+
 /**
 *   Benchmarking
 */
@@ -10,7 +8,7 @@ $callstack = array();
 function callstack_push($name){
     global $callstack;
     $callstack[] = array(
-        'name'  =>  $name
+        'name'      =>  $name
     ,   'microtime' =>  microtime()
     );
 }
@@ -352,13 +350,13 @@ function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $ta
             $from_line['join_type'] = 'LEFT';
             $mql_node['outer_join'] = TRUE;
         }
-        else {
+        else {                                  
             $from_line['join_type'] = 'INNER';
         } 
         switch ($direction) {
-            case 'referencing->referenced':                
+            case 'referencing->referenced':     //lookup (n:1 relationship)           
                 break;
-            case 'referenced<-referencing':
+            case 'referenced<-referencing':     //lookdown (1:n relationship) - starts a separate query.
                 $select = &$query['select'];
                 $order_by = &$query['order_by'];
                 $merge_into = &$query['merge_into'];
@@ -384,8 +382,6 @@ function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $ta
                     $select[$column_ref] = $alias;
                     $order_by .= ($order_by===''? 'ORDER BY ' : "\n, ");
                     $order_by .= $alias;
-                    $join_condition .= ' '  .$child_t_alias.'.'.$columns['referenced_column']
-                                    .  ' = '.$t_alias.'.'.$columns['referencing_column'];
                     break;
             }
         }            
@@ -470,7 +466,10 @@ function handle_filter_property(&$queries, $query_index, $t_alias, $column_name,
         //the expression is used in the WHERE clause.
         switch ($operator) {
             case '~=':  //funky mql pattern matcher
-                //not implemented yet.
+                //not implemented yet. 
+                //most likely it will be very hard 
+                //to implement this in a rdmbs-independent way
+                //let alone efficiency
                 break;
             case '<': case '>': case '<=': case '>=': case '!=': 
             case '=': //note that = is an extension. Silly it's not standard.
@@ -1063,10 +1062,7 @@ $debug_info = $query_decode->debug_info;
 /*****************************************************************************
 *   Schema
 ******************************************************************************/
-//$metadata_file_name = '../schema/boa-schema.json';
-$metadata_file_name = '../schema/schema.json';
-//$metadata_file_name = '../schema/schema-sqlite.json';
-
+//$metadata_file_name is defined in config.php
 if (!file_exists($metadata_file_name)){
     exit('Cannot find schema file "'.$metadata_file_name.'".');
 }
@@ -1080,11 +1076,7 @@ if (!$metadata = json_decode($metadata_file_contents, TRUE)) {
 /*****************************************************************************
 *   Database (PDO)
 ******************************************************************************/
-//$connection_file_name = '../schema/boa-connection.json';
-$connection_file_name = '../schema/connection-mysql.json';
-//$connection_file_name = '../schema/connection-oracle.json';
-//$connection_file_name = '../schema/connection-sqlite.json';
-
+//$connection_file_name is defined in config.php
 if (!file_exists($connection_file_name)){
     exit('Cannot find connection file "'.$connection_file_name.'".');
 }
@@ -1122,4 +1114,5 @@ else {
 }
 $result['status'] = '200 OK';
 $result['transaction_id'] = 'not implemented';
+header("Content-Type: application/json");
 echo json_encode($result);
