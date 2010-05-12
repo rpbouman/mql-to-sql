@@ -1,0 +1,12 @@
+=Data model=
+The freebase database is powered by a proprietary database management system powered by [http://www.metaweb.com/ Metaweb]. This DBMS is not a relational, but a so-called graph database. Even though the data model is very different from that of relational database systems, the MQL query language can be applied to relational database systems using a fairly straight forward mapping.
+
+==Mapping MQL to SQL==
+To understand the mapping from MQL to SQL used in this project, it is necessary to be familiar with a few fundamental freebase concepts. To this end, please read the excellent online [http://www.freebase.com/docs/data/introduction guide to freebase] (start here, and follow all links in the inner left sidebar - it's a 10 minute read alltogether).
+
+Although the exact details of the mapping are stored in a schema file, the default mapping is as follows:
+  * MQL Domains map to SQL schemas
+  * MQL Types map to SQL tables
+  * MQL properties can map to two things:
+    * columns, in case the property type implies a value
+    * foreign keys, which implement a relationship to a table
