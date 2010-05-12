@@ -75,7 +75,8 @@ function is_filter_property($value){
 }
 
 function analyze_property($property_name, $property_value){
-    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|\?=    )?$/';
+    //                     12   2 1 345          5  4 6   647                       7
+    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|\?=)?$/';
     $matches = array();
     if (preg_match($property_pattern, $property_name, $matches)){
         return array(
@@ -1114,5 +1115,16 @@ else {
 }
 $result['status'] = '200 OK';
 $result['transaction_id'] = 'not implemented';
-header("Content-Type: application/json");
-echo json_encode($result);
+$json_result = json_encode($result);
+
+$callback = $args['callback'];
+if ($callback) {
+    $content_type = 'text/javascript';
+    $response = $callback.'('.$json_result.')';
+}
+else {
+    $content_type = 'application/json';
+    $response = $json_result;
+}
+header('Content-Type: '.$content_type);
+echo $response;
