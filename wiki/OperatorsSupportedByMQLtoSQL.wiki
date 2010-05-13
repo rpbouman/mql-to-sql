@@ -1,4 +1,4 @@
-#summary One-sentence summary of this page.
+#summary This page describes the MQL operators, their mql-to-sql implementation, as well as a number of non-standard operators that mql-to-sql offers as an extension to standard MQL.
 
 = Supported operators =
 This page documents which operators are supported by mql-to-sql:
@@ -23,7 +23,7 @@ The SQL standard (iso-9075) does define a regular expression comparison operator
 
 The current mql-to-sql implementation does offer a pattern matching operator: the `?=`. This is however a non-standard operator with semantics that should makes sense to people familiar with the SQL language, but not necessarily Ajax web-developers (which is the intended audience for mql-to-sql).
 
-== Non-standard Operators extensions supported by mql-to-sql ==
+== Non-standard Operators supported by mql-to-sql ==
 
 The initial mql-to-sql implementation supports a few operators which are not defined in standard MQL. They are:
 
