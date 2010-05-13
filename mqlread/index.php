@@ -76,7 +76,7 @@ function is_filter_property($value){
 
 function analyze_property($property_name, $property_value){
     //                     12   2 1 345          5  4 6   647                       7
-    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|!\|=|\?=)?$/';
+    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|!\|=|\?=|!\?=)?$/';
     $matches = array();
     if (preg_match($property_pattern, $property_name, $matches)){
         return array(
@@ -479,13 +479,17 @@ function handle_filter_property(&$queries, $query_index, $t_alias, $column_name,
                 break;
             case '!|=':
                 $from_or_where .= ' NOT';
-                //fall through is intentional, keep the !|= and |= together please.
+                //fall through is intentional, keep the !|= and |= together please, in order.
             case '|=':
                 $from_or_where .= ' IN (';
                 $add_closing_parenthesis = TRUE;            
                 break;
+            case '!?=': //extension. Ordinary database NOT LIKE
+                $from_or_where .= ' NOT';
+                //fall through is intentional, keep the !?= and ?= together please, in order.
             case '?=':  //extension. Ordinary database LIKE
                 $from_or_where .= ' LIKE ';
+                $add_closing_escape_clause = TRUE;
                 break;
         }
     }
@@ -498,6 +502,10 @@ function handle_filter_property(&$queries, $query_index, $t_alias, $column_name,
     add_parameter_for_property(&$from_or_where, &$params, $property);
     if ($add_closing_parenthesis) {
         $from_or_where .= ')';
+    }
+    else 
+    if ($add_closing_escape_clause) {
+        $from_or_where .= " ESCAPE '\\'";
     }
 }
 
