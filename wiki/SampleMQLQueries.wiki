@@ -9,15 +9,15 @@ MQL:
   "title": null
 }]
 }}}
-The query is a piece of JSON. It denotes an array containing a single object having a type, film_id and title property.
+The query is a piece of JSON. It denotes an array containing a single object having a `type`, `film_id` and `title` property.
 
-The type property is special: it is used to decide which table to query. The type consists of two parts: /sakila is the domain, and /film is the type. In mql-to-sql, this maps to the film table in the sakila schema. The precise mapping of domain/type to schema/table can be configured, but mapping it to schema/table is a natural fit.
+The `type` property is special: it is used to decide which table to query. The value of the `type` property consists of two parts: `/sakila` is the domain, and `/film` is the actual type (as in, data type). In mql-to-sql, this maps to the `film` table in the `sakila` schema. The precise mapping of domain/type to schema/table can be configured, but mapping it to schema/table is a natural fit.
 
 In MQL, query nodes need not have a type property. A current limitation in mql-to-sql is that the top-level object that makes up the MQL query must have a type property. 
 
-Unlike the type property, the film_id and title are not special. These properties map to the film_id and title columns of the sakila.film table respectively. In mql-to-sql, properties can map either to table columns or to related tables (of which we will see some examples later on). 
+Unlike the type property, the `film_id` and `title` are not special. Unsurprisingly, these properties map to the `film_id` and `title` columns of the `sakila.film` table respectively. In mql-to-sql, properties can map either to table columns or to related tables (of which we will see some examples later on). 
 
-In this particualr query, the film_id and title properties are null. In MQL this means we want to obtain the values for these properties. Here's a sample of the result:
+In this particular query, the `film_id` and `title` properties are `null`. In MQL this means we want to obtain the values for these properties. Here's a sample of the result:
 
 {{{
 [
@@ -52,9 +52,13 @@ MQL:
 }
 }}}
 
-This query is similar to the initial example, except for two differenes: in this case, film_id property is 1, and now the MQL query is a JSON object, which is not wrapped in an array.
+This query looks similar to the initial example, but there are two important differences:
+  * the film_id property is set to 1
+  * the MQL query is a JSON object and is not wrapped in an array.
 
-By specifying 1 for film_id, we're asking to return only those objects for which the film_id property equals 1. Because the film_id property maps to the film_id column of the sakila.film table, which also happens to be the primary key, we are asking to retrieve a single film that has a film_id of 1. Because there can be at most a single row in the sakila.film table having film_id=1, the query can at most return a single object. For this reason, the JSON that makes up the top-level of the MQL-query need not be an array - because we know that query can never return more than just one object.
+By specifying 1 for film_id, we're asking to return only those objects for which the film_id property equals 1. Because the film_id property maps to the film_id column of the sakila.film table, which also happens to be the primary key, we are asking to retrieve a single film that has a film_id of 1.
+
+Because there can be at most a single row in the sakila.film table having film_id=1, the query can at most return a single object. For this reason, the JSON that makes up the top-level of the MQL-query need not be an array - because we know that query can never return more than just one object.
 
 This is the result: 
 {{{
@@ -80,6 +84,28 @@ MQL:
   "title": null
 }]
 }}}
+
+This query is similar to both the first and the second example. But now, the film_id property contains a MQL operator: note that film_id is followed by |=, which is the MQL "one-of" operator. The |= operator in MQL is similar to a particular for of the IN operator in SQL. The value of the property is an array containing the values 1,2 and 3, which means that we want to retrieve all objects for wich the film_id is 1,2, or 3.
+
+This is the result:
+{{{
+[
+  {
+    "type":"/sakila/film",
+    "title":"ACADEMY DINOSAUR"
+  },
+  {
+    "type":"/sakila/film",
+    "title":"ACE GOLDFINGER"
+  },
+  {
+    "type":"/sakila/film",
+    "title":"ADAPTATION HOLES"
+  }
+]
+}}}
+These objects indeed correspond to the films having the film_id's 1,2, and 3. But note that the film_id property itself is not present: MQL properties that are followed by an operator are not included in the result. (Retrieving the value for film_id is easy enough though - simply include a property `"film_id": null`)
+
 Equivalent SQL:
 {{{
 SELECT '/sakila/film', title
