@@ -11,11 +11,15 @@ MQL:
 }}}
 The query is a piece of JSON. It denotes an array containing a single object having a `type`, `film_id` and `title` property.
 
-The `type` property is special: it is used to decide which table to query. The value of the `type` property consists of two parts: `/sakila` is the domain, and `/film` is the actual type (as in, data type). In mql-to-sql, this maps to the `film` table in the `sakila` schema. The precise mapping of domain/type to schema/table can be configured, but mapping it to schema/table is a natural fit.
+The `type` property is special: it is used to decide which table to query. The value of the `type` property consists of two parts: `/sakila` is the domain, and `/film` is the actual type (as in, data type). In mql-to-sql, this maps to the `film` table in the `sakila` schema. 
+
+The precise mapping of domain/type to schema/table can be configured, but mapping it to schema/table is a natural fit.
 
 In MQL, query nodes need not have a type property. A current limitation in mql-to-sql is that the top-level object that makes up the MQL query must have a type property. 
 
-Unlike the type property, the `film_id` and `title` are not special. Unsurprisingly, these properties map to the `film_id` and `title` columns of the `sakila.film` table respectively. In mql-to-sql, properties can map either to table columns or to related tables (of which we will see some examples later on). 
+Unlike the type property, the `film_id` and `title` are not special. Unsurprisingly, these properties map to the `film_id` and `title` columns of the `sakila.film` table respectively. In mql-to-sql, properties can map either to table columns or to related tables (of which we will see some examples later on).
+
+Again, the precise mapping of properties to columns can be configured, but by default a column name translates directly to a property name. It is not necessarily true the other way around: some properties map to columns, and some other properties map to tables. We'll discuss a few examples of that later on in this page.
 
 In this particular query, the `film_id` and `title` properties are `null`. In MQL this means we want to obtain the values for these properties. Here's a sample of the result:
 
@@ -85,7 +89,7 @@ MQL:
 }]
 }}}
 
-This query is similar to both the first and the second example. But now, the `film_id` property contains a MQL operator: note that `film_id` is followed by `|=`, which is the MQL "one-of" operator. The `|=` operator in MQL is similar to a particular form of the `IN` operator in SQL. The value of the property is the array `[1,23]`, which means that we want to retrieve all objects for which the `film_id` is either `1`, `2`, or `3`.
+This query is similar to both the first and the second example. But now, the `film_id` property contains a MQL operator: note that `film_id` is followed by `|=`, which is the MQL "one-of" operator. The `|=` operator in MQL is similar to a particular form of the `IN` operator in SQL. The value of the property is the array `[1,2,3]`, which means that we want to retrieve all objects for which the `film_id` is either `1`, `2`, or `3`.
 
 This is the result:
 {{{
@@ -112,8 +116,15 @@ SELECT '/sakila/film', title
 FROM sakila.film
 WHERE film_id IN (1,2,3)
 }}}
+
+For more information on MQL operators, and the operators supported by mql-to-sql, please see [http://code.google.com/p/mql-to-sql/wiki/OperatorsSupportedByMQLtoSQL the wiki page on operator support].
+
 ===Retrieve a film (by title) along with it's language===
-MQL:
+So far, we've seen how properties in the MQL query and result map to database columns. But some properties map to tables rather than columns. Typically, these tables are related at the database level through a foreign key. 
+
+The precise details of the mapping from properties to foreign key relationships is again configurable.
+
+Consider this query:
 {{{
 {
   "type": "/sakila/film",
@@ -125,7 +136,22 @@ MQL:
   }
 }
 }}}
-Equivalent SQL:
+Here, we query for the film having the title `ACADEMY DINOSAUR`. But in addition to the `film_id` and `title` properties introduced above, we also query a property called `fk_film_language`. And this time, the property holds an object of it's own, with two properties `language_id` and `language_name`.
+
+Before we explain how it maps to the database, first checkout the result:
+{{{
+{
+  "type": "/sakila/film",
+  "film_id": 1,
+  "title": "ACADEMY DINOSAUR",
+  "fk_film_language": {
+    "language_id": 1,
+    "language_name": "English"
+  }
+}
+}}}
+
+What happened here is that the type of the property `fk_film_language` is not a simple scalar value, but an object. At the database level, this is equivalent to a `JOIN` operation. Here's the equivalent SQL:
 {{{
 SELECT '/sakila/film', f.film_id, 'ACADEMY DINOSAUR',
        l.language_id, l.language
@@ -134,6 +160,10 @@ INNER JOIN sakila.language l
 ON f.language_id = l.language_id
 WHERE f.title = 'ACADEMY DINOSAUR'
 }}}
+A few things are worth pointing out:
+  * We didn't specify a `type` property for the object assigned to the `fk_film_language` property. We don't need to: the mql-to-sql query engine understands that the `fk_film_language` property points to the `sakila.language` table. (Again this is configurable)
+  * The SQL statement contains a join condition (in the `ON` clause) that specifies exactly how the rows from the `film` and `language` tables are to be matched to each other. In MQL this is not necessary (or possible). The details concerning how the tables should be related is hidden and implied in the `fk_film_language` property
+  * The property name `fk_film_language` is actually the name of the foreign key constraint that enforces referential integrity at the database level between the `film` and `language` tables. By default, the constraint name is used as property name, but again this can be configured.
 ===Retrieve a film (by title) along with it's language (shorthand) ===
 MQL:
 {{{
