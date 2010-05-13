@@ -17,7 +17,11 @@ The operators that are part of the MQL language are listed [http://www.freebase.
 == Standard Operators supported by mql-to-sql ==
 The initial mql-to-sql implementation supports almost all standard MQL operators. The notable exception is `~=`. 
 
-There is no principal reason for not supporting, only a practical one: the pattern matching rules, which are described in [http://www.freebase.com/docs/mql/ch03.html#textconstraints section 3.6.2. Pattern Matching with the ~= Operator] of the MQL reference, are quite specific to freebase. It only superficially resembles regular expression matching as the `~=` operator matches on the word level.
+There is no principal reason for not supporting `~=`, only a practical one: the pattern matching rules, which are described in [http://www.freebase.com/docs/mql/ch03.html#textconstraints section 3.6.2. Pattern Matching with the ~= Operator] of the MQL reference, are quite specific to freebase. It only superficially resembles regular expression matching as the `~=` operator matches on the word level.
+
+The SQL standard (iso-9075) does define a regular expression comparison operator. This is not widely supported across RDBMS-es but perhaps mql-to-sql could try to support an implementation of MQL's `~=` operator based on SQL standard regular expressions.
+
+The current mql-to-sql implementation does offer a pattern matching operator: the `?=`. This is however a non-standard operator with semantics that should makes sense to people familiar with the SQL language, but not necessarily Ajax web-developers (which is the intended audience for mql-to-sql).
 
 == Non-standard Operators extensions supported by mql-to-sql ==
 
