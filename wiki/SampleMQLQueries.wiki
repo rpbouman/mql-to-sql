@@ -60,8 +60,8 @@ This is the result:
 {{{
 {
   "type": "/sakila/film",
-  "film_id": null,
-  "title": null
+  "film_id": 1,
+  "title": "ACADEMY DINOSAUR"
 }
 }}}
 
