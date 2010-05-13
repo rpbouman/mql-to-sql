@@ -1,0 +1,83 @@
+#summary One-sentence summary of this page.
+
+= Supported operators =
+This page documents which operators are supported by mql-to-sql:
+
+== Operators supported by MQL ==
+The operators that are part of the MQL language are listed [http://www.freebase.com/docs/mql/ch03.html#operators here] in the [http://www.freebase.com/docs/mql MQL reference]. They are:
+
+  * `<` - less than
+  * `>` - greater than 
+  * `<=` - less than or equal to
+  * `>=` - greater than or equal to 
+  * `~=` - pattern match
+  * `!=` - not equal to
+  * `|=` - one of
+
+== Standard Operators supported by mql-to-sql ==
+The initial mql-to-sql implementation supports almost all standard MQL operators. The notable exception is `~=`. 
+
+There is no principal reason for not supporting, only a practical one: the pattern matching rules, which are described in [http://www.freebase.com/docs/mql/ch03.html#textconstraints section 3.6.2. Pattern Matching with the ~= Operator] of the MQL reference, are quite specific to freebase. It only superficially resembles regular expression matching as the `~=` operator matches on the word level.
+
+== Non-standard Operators extensions supported by mql-to-sql ==
+
+The initial mql-to-sql implementation supports a few operators which are not defined in standard MQL. They are:
+
+  * `=` - ordinary equals (technically a negation of the standard `!=` operator)
+  * `!|=` - "not one of", the negation of the standard `|=` operator
+  * `?=` - a pattern matching operator similar to `~=` but which uses the pattern matching rules of the SQL standard `LIKE` operator.
+  * `!?=` - the negation of the non-standard `?=` operator mentioned above
+
+===The equals operator `=`===
+The `=` operator uses a simple equals comparison. At a glance it may seem as if MQL doesn't need it, for example, a query against the sakila sample database like: 
+{{{
+{
+  "type": "/film/sakila",
+  "film_id": 1,
+  "title": null
+}
+}}}
+matches the film `WHERE film_id = 1`, and has this result:
+{{{
+{
+  "type": "/film/sakila",
+  "film_id": 1,
+  "title": "ACADEMY DINOSAUR"
+}
+}}}
+However, the filtered property `film_id` itself is also in the result. In standard MQL, properties that are compared using an operator are automatically omitted from the result, and this is exactly the purpose of the `=` operator. 
+
+So, this query: 
+{{{
+{
+  "type=": "/film/sakila",
+  "film_id=": 1,
+  "title": null
+}
+}}}
+will have this result:
+{{{
+{
+  "title": "ACADEMY DINOSAUR"
+}
+}}}
+The reason for including the `=` operator extension is that in some cases, one may need to filter on a property, but not need it in the result. This is not unreasonable since the client making the request is by definition already aware of the value of these properties (otherwise they couldn't have come up with the query anyway).
+
+Now, if the property makes up a a substantial portion of the response, being able to explicitly omit it from the result may translate into a considerably smaller response, which is good from a performance point of view (both for the client as well as the server): less time is spent on copying data into the resultset, less data travelling the wire, and less time spent on reading the data that is known already anyway.
+
+===The `!|=` operator===
+This extension is added for sake of completeness - if there is a `|=` operator, and if `!`  has negation sematics (it has at least in `!=`) then why omit the negated operator? What helps too is that it is completely trivial to implement: the `IN` and `NOT IN` operators are widely implemented in RDBMS systems (it's probably safe to say that every RDBMS that has a SQL interface supports these operators).
+
+===The `?=` operator===
+The `?=` operator was added to offer a decent pattern matching operator. Because of the word matching semantics of the MQL standard `~=` operator, it will be quite hard to implement it efficiently and generically across RDBMS-es. Some RDBMS-es may offer fulltext capabilities that could help, but the SQL generation will almost certainly have to take the specific RDBMS syntax into account to achieve it. 
+
+A feature that is reasonably well supported across RDBMS-es is the SQL standard `LIKE` operator. The `LIKE` operator is a very simple pattern matching operator. The metacharacters (wildcards) recognized by `LIKE` are:
+  * `%` - matches any (possibly zero length) sequence of characters
+  * `_` - matches any single character
+
+By inventing a MQL notation for this SQL operator, this useful operator would become available against minimal implementation effort, as it is trivial to generate the SQL and most RDBMSes have good support for this functionality.
+
+The MQL operator invented for this pattern matching operation is `?=`. The question mark was chosen to represent a generic wildcard. Another option that was considered was `%=` (to match the percent metacharacter recognized by the `LIKE` operator, but this was rejected to avoid possible confusion with the Javascript `%=` operator (the modulo assignment). (On another note, the MQL standard operator `|=` should also not be confused with the Javascript operator `|=`, which performs a bitwise-OR assignment)
+
+===The `!?=` operator===
+For the sake of completeness, the `!?=` operator translates to a `NOT LIKE` comparison on the database level. It felt natural to add this for completeness sake.
