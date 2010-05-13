@@ -76,7 +76,7 @@ function is_filter_property($value){
 
 function analyze_property($property_name, $property_value){
     //                     12   2 1 345          5  4 6   647                       7
-    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|\?=)?$/';
+    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|!\|=|\?=)?$/';
     $matches = array();
     if (preg_match($property_pattern, $property_name, $matches)){
         return array(
@@ -127,17 +127,18 @@ function process_mql_object(&$mql_object, &$parent){
             exit('Property "'.$property_key.'" is not valid.');
         }
         $operator = $property['operator'];
-        if ($operator
-        && ($property_value === NULL
-        ||  is_object($property_value) 
-        || ($operator!=='|=' && is_array($property_value))
-        || ($operator==='|=' && count($property_value)===0))
-        ) {
-            exit("Operator ".$operator.' '
-            .($operator==='|=' 
-            ? 'takes a non-empty list of values' 
-            : 'takes a single value (not an object or an array)')
-            );
+        if ($operator) {
+            $operator_in = ($operator==='|=')||($operator==='!|=');
+            if ($property_value === NULL
+            ||  is_object($property_value)
+            ||  ($operator_in && is_array($property_value) && count($property_value)===0)
+            ){
+                exit("Operator ".$operator.' '
+                .(($operator==='|=' || $operator==='!|=')
+                ? 'takes a non-empty list of values' 
+                : 'takes a single value (not an object or an array)')
+                );
+            }
         }
         $property_qualifier = $property['qualifier'];
         $property_name      = $property['name'];
@@ -476,9 +477,12 @@ function handle_filter_property(&$queries, $query_index, $t_alias, $column_name,
             case '=': //note that = is an extension. Silly it's not standard.
                 $from_or_where .= ' '.$operator.' ';
                 break;
+            case '!|=':
+                $from_or_where .= ' NOT';
+                //fall through is intentional, keep the !|= and |= together please.
             case '|=':
                 $from_or_where .= ' IN (';
-                $add_closing_parenthesis = TRUE;
+                $add_closing_parenthesis = TRUE;            
                 break;
             case '?=':  //extension. Ordinary database LIKE
                 $from_or_where .= ' LIKE ';
