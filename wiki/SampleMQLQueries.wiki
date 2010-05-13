@@ -56,6 +56,15 @@ This query is similar to the initial example, except for two differenes: in this
 
 By specifying 1 for film_id, we're asking to return only those objects for which the film_id property equals 1. Because the film_id property maps to the film_id column of the sakila.film table, which also happens to be the primary key, we are asking to retrieve a single film that has a film_id of 1. Because there can be at most a single row in the sakila.film table having film_id=1, the query can at most return a single object. For this reason, the JSON that makes up the top-level of the MQL-query need not be an array - because we know that query can never return more than just one object.
 
+This is the result: 
+{{{
+{
+  "type": "/sakila/film",
+  "film_id": null,
+  "title": null
+}
+}}}
+
 Equivalent SQL:
 {{{
 SELECT '/sakila/film', 1, title
