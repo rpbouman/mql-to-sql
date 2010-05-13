@@ -9,6 +9,34 @@ MQL:
   "title": null
 }]
 }}}
+The query is a piece of JSON. It denotes an array containing a single object having a type, film_id and title property.
+
+The type property is special: it is used to decide which table to query. The type consists of two parts: /sakila is the domain, and /film is the type. In mql-to-sql, this maps to the film table in the sakila schema. The precise mapping of domain/type to schema/table can be configured, but mapping it to schema/table is a natural fit.
+
+In MQL, query nodes need not have a type property. A current limitation in mql-to-sql is that the top-level object that makes up the MQL query must have a type property. 
+
+Unlike the type property, the film_id and title are not special. These properties map to the film_id and title columns of the sakila.film table respectively. In mql-to-sql, properties can map either to table columns or to related tables (of which we will see some examples later on). 
+
+In this particualr query, the film_id and title properties are null. In MQL this means we want to obtain the values for these properties. Here's a sample of the result:
+
+{{{
+[
+    {
+      "type": "/sakila/film",
+      "film_id": 1,
+      "title": "ACADEMY DINOSAUR"
+    },
+    ...many more film objects...
+    {
+      "type": "/sakila/film",
+      "film_id": 1000,
+      "title": "ZORRO ARK"
+    }
+
+]
+}}}
+As you can see, the structure of the query is mirrored in the result. Another way of putting it is to say that the query is a template that specifies an example of the objects we want to find. So, this is basically a "query-by-example" where the result "fills in the blanks" (the null properties) in the query.
+
 Equivalent SQL:
 {{{
 SELECT '/sakila/film', film_id, title
@@ -23,6 +51,9 @@ MQL:
   "title": null
 }
 }}}
+
+This query is very similar to the initial example. The only difference is that now, the film_id property is 1. Just like the type property 
+
 Equivalent SQL:
 {{{
 SELECT '/sakila/film', 1, title
