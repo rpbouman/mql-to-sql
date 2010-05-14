@@ -361,19 +361,6 @@ function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $ta
 
         switch ($direction) {
             case 'referencing->referenced':     //lookup (n:1 relationship)           
-                if ($outer_join===TRUE){
-                    if ($optional===TRUE) {
-                        $from_line['optionality_group'] = $t_alias;
-                    }
-                    else {
-                        if ($count_from) {                        
-                            $from_line['optionality_group'] = $from[$child_t_alias]['optionality_group'];
-                        }
-                        else {
-                            $from_line['optionality_group'] = $child_t_alias;
-                        }
-                    }
-                }
                 break;
             case 'referenced<-referencing':     //lookdown (1:n relationship) - starts a separate query.
                 $select = &$query['select'];
@@ -387,8 +374,26 @@ function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $ta
             $join_condition .= ($join_condition==='')? 'ON':"\nAND";
             switch ($direction){
                 case 'referencing->referenced':
+                    $referenced_column = $t_alias.'.'.$columns['referenced_column'];
+
+                    if ($outer_join===TRUE && $join_condition === 'ON'){
+                        if ($optional===TRUE) {
+                            $from_line['optionality_group'] = $t_alias;
+                        }
+                        else {
+                            if ($count_from) {                        
+                                $from_line['optionality_group'] = $from[$child_t_alias]['optionality_group'];
+                            }
+                            else {
+                                $from_line['optionality_group'] = $child_t_alias;
+                            }
+                        }
+                        $from_line['optionality_group_column'] = $referenced_column;
+                    }
+
                     $join_condition .= ' '  .$child_t_alias.'.'.$columns['referencing_column']
-                                    .  ' = '.$t_alias.'.'.$columns['referenced_column'];
+                                    .  ' = '.$referenced_column;
+
                     break;
                 case 'referenced<-referencing':
                     $column_ref = $t_alias.'.'.$columns['referencing_column'];
@@ -544,15 +549,15 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
     if (!$query){
         $prev_query = $queries[$merge_into['query_index']];
         $query = array(
-            'select'        =>  array()
-        ,   'from'          =>  array()
-        ,   'where'         =>  ''
-        ,   'order_by'      =>  ''
-        ,   'params'        =>  array()
-        ,   'mql_node'      =>  &$mql_node
-        ,   'indexes'       =>  array()
-        ,   'merge_into'    =>  $merge_into
-        ,   'results'       =>  array()
+            'select'                =>  array()
+        ,   'from'                  =>  array()
+        ,   'where'                 =>  ''
+        ,   'order_by'              =>  ''
+        ,   'params'                =>  array()
+        ,   'mql_node'              =>  &$mql_node
+        ,   'indexes'               =>  array()
+        ,   'merge_into'            =>  $merge_into
+        ,   'results'               =>  array()
         );
         $queries[$query_index] = &$query;        
     }
@@ -722,15 +727,47 @@ function get_query_sql($query){
     else {
         $sql .= ' NULL';
     }
+    $optionality_groups = array();
     foreach ($query['from'] as $index => $from_line) {
+        if ($optionality_group_name = $from_line['optionality_group']) {
+            if (!array_key_exists ($optionality_group_name, $optionality_groups)) {
+                $optionality_groups[$optionality_group_name] = array();
+            }
+            $optionality_group = &$optionality_groups[$optionality_group_name];
+            $optionality_group[] = $from_line['optionality_group_column'];
+        }
         $from_or_join = $index && (isset($from_line['join_type']));
         $sql .= "\n".($from_or_join ? $from_line['join_type'].' JOIN ' : 'FROM ').$from_line['table'].' '.$from_line['alias'];
         if ($from_or_join){
             $sql .= "\n".$from_line['join_condition'];
         }
+    }    
+    $where = $query['where'];
+    foreach ($optionality_groups as $k => $v) {
+        $condition_null = '';
+        $condition_not_null = '';
+        foreach ($v as $optionality_group_column) {
+            if ($condition_null !== '') {
+                $condition_null.= ' AND ';
+            }
+            $condition_null .= $optionality_group_column.' IS NULL';
+            if ($condition_not_null !== '') {
+                $condition_not_null.= ' AND ';
+            }
+            $condition_not_null .= $optionality_group_column.' IS NOT NULL';
+        }
+        if ($where) {
+            $where .= "\nAND";
+        }
+        else {
+            $where .= "\nWHERE";
+        }
+        $where.= ' (('.$condition_null.') OR ('.$condition_not_null.'))';
     }
-    $sql .= ($query['where']? "\n".$query['where'] : '')
+    
+    $sql .= ($where? "\n".$where : '')
     .       ($query['order_by']? "\n".$query['order_by'] : '');
+    
     return $sql;
     
 }
@@ -916,7 +953,6 @@ function create_inline_tables_for_indexes(&$indexes){
 *   return:
 */
 function execute_sql_queries(&$sql_queries) {
-    print_r($sql_queries);
     foreach($sql_queries as $sql_query_index => &$sql_query){
     
         $indexes = &$sql_query['indexes'];
