@@ -718,7 +718,6 @@ function &execute_sql($statement_text, $params){
 
 function get_query_sql($query){
     $sql = 'SELECT';
-    
     if ($select_columns = $query['select']) {
         foreach ($select_columns as $column_ref => $column_alias) {
             $sql .= ($sql==='SELECT'? '  ' : "\n, ").$column_ref.' AS '.$column_alias;
@@ -767,9 +766,7 @@ function get_query_sql($query){
     
     $sql .= ($where? "\n".$where : '')
     .       ($query['order_by']? "\n".$query['order_by'] : '');
-    
     return $sql;
-    
 }
 
 function execute_sql_query(&$sql_query){
@@ -960,6 +957,7 @@ function execute_sql_queries(&$sql_queries) {
         $mql_node = $sql_query['mql_node'];
         get_result_object($mql_node, $sql_query_index);
         $result_object = $mql_node['result_object'];
+		
         if ($merge_into = $sql_query['merge_into']) {
             $merge_into_columns = $merge_into['columns'];
             $select_columns = $sql_query['select'];
@@ -983,7 +981,8 @@ function execute_sql_queries(&$sql_queries) {
                                 ;
             }
             $from = &$sql_query['from'];
-            $first_from_line = &$from[0];
+			//php guru's, isn't the a func to get the first element of an array?
+			foreach ($from as &$first_from_line) { break; }
             $first_from_line['join_condition'] = $join_condition;
             $first_from_line['join_type'] = 'INNER';
             array_unshift($from, $extra_from_line);            
