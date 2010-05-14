@@ -1,0 +1,27 @@
+#summary One-sentence summary of this page.
+
+=Getting Started=
+You can either run mql-to-sql locally on your own webserver, or try the online demo. 
+
+==Running Locally==
+To run mql-to-sql locally, you'll need a webserver with PHP support. The script relies on the JSON, as well as the PDO extensions. It is being developed on PHP 5.2.8 but you may be able to run it against another version of PHP.
+
+A sample SQLite database with the Sakila schema and sample data is included in the project, so you can get started on your own server with minimal effort. The steps are:
+
+  # do a subversion check out of the code (see [http://code.google.com/p/mql-to-sql/source/checkout]) 
+  # configure your webserver to make the `mqlread` subdirectory of the project available
+  # edit the `connection-sqlite.json` file in the `schema` subdirectory to point to the absolute location of the `sakila.sqlite` file in the `data` directory
+
+That's it! 
+
+If you don't feel like going through these steps, of if you are unsure it's worth it, you should consider to check out the online demo. This will give you the quickest impression of what this project is about. If that sparks your interest, you can still decide to run a local instance.
+
+==Online Demo==
+To try it out online, goto:
+
+[http://mql.qbmetrix.com/mqlread/mql-to-sql-query-editor.php]
+
+This allows you to execute MQL queries against the MySQL [http://dev.mysql.com/doc/sakila/en/sakila.html Sakila] sample database without installing or configuring anything yourself.
+
+Screenshot:
+http://farm4.static.flickr.com/3405/4602148435_dca44333f3_o.png
