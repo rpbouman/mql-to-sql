@@ -1,3 +1,5 @@
+#summary This page provides a mini-tutorial of MQL for SQL developers. The sample queries in this tutorial are all against MySQL's sakila sample database, and can be run instantly in the online query editor.
+
 =Sample Queries=
 Here are a few sample queries that work already. You can test them in the [http://mql.qbmetrix.com/mqlread/mql-to-sql-query-editor.php online demo query editor].
 ===Retrieve all films===
