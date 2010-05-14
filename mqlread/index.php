@@ -344,19 +344,36 @@ function is_optional($mql_node){
 function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $table_name, &$query){
     $schema = $mql_node['schema'];
     $from = &$query['from'];
+    $count_from = count($from);
     $from_line = array();
     $join_condition = '';
     if ($direction = $schema['direction']) {
-        if ($mql_node['outer_join']===TRUE      //if we already are in an outer join branch, continue to outer join
-        ||  is_optional($mql_node)===TRUE) {    //if this is an optional mql node, start an outer join branch
-            $from_line['join_type'] = 'LEFT';
+    
+        if (($optional = is_optional($mql_node))===TRUE){
             $mql_node['outer_join'] = TRUE;
+            $outer_join = TRUE;
         }
-        else {                                  
-            $from_line['join_type'] = 'INNER';
-        } 
+        else {
+            $outer_join = $mql_node['outer_join'];
+        }
+        
+        $from_line['join_type'] = ($outer_join===TRUE) ? 'LEFT' : 'INNER';
+
         switch ($direction) {
             case 'referencing->referenced':     //lookup (n:1 relationship)           
+                if ($outer_join===TRUE){
+                    if ($optional===TRUE) {
+                        $from_line['optionality_group'] = $t_alias;
+                    }
+                    else {
+                        if ($count_from) {                        
+                            $from_line['optionality_group'] = $from[$child_t_alias]['optionality_group'];
+                        }
+                        else {
+                            $from_line['optionality_group'] = $child_t_alias;
+                        }
+                    }
+                }
                 break;
             case 'referenced<-referencing':     //lookdown (1:n relationship) - starts a separate query.
                 $select = &$query['select'];
@@ -365,13 +382,9 @@ function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $ta
                 $merge_into_columns = &$merge_into['columns'];
                 break;
         }
+
         foreach ($schema['join_condition'] as $columns) {
-            if ($join_condition==='') {
-                $join_condition = "ON";
-            }
-            else {
-                $join_condition .= "\nAND";
-            }
+            $join_condition .= ($join_condition==='')? 'ON':"\nAND";
             switch ($direction){
                 case 'referencing->referenced':
                     $join_condition .= ' '  .$child_t_alias.'.'.$columns['referencing_column']
@@ -393,7 +406,7 @@ function get_from_clause(&$mql_node, $t_alias, $child_t_alias, $schema_name, $ta
     if ($join_condition) {
         $from_line['join_condition'] = $join_condition;
     }
-    $from[] = $from_line;
+    $from[$t_alias] = $from_line;
 }
 
 function map_mql_to_pdo_type($mql_type){
@@ -903,6 +916,7 @@ function create_inline_tables_for_indexes(&$indexes){
 *   return:
 */
 function execute_sql_queries(&$sql_queries) {
+    print_r($sql_queries);
     foreach($sql_queries as $sql_query_index => &$sql_query){
     
         $indexes = &$sql_query['indexes'];
