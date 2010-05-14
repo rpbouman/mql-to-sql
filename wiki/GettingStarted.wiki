@@ -1,4 +1,4 @@
-#summary This page explains how to get set up with mql-to-sql either by running on your own system or by using the online demo.
+#summary This page explains how to get set up with mql-to-sql either by running it on your own system against your own RDBMS, or by using the online demo.
 
 =Getting Started=
 You can either run mql-to-sql locally on your own webserver, or try the online demo. 
