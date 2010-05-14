@@ -9,7 +9,8 @@ include 'config.php';
         <title>MQL to SQL Query Editor</title>
         <style type="text/css">
             * {
-                font-family: arial
+                font-family: arial;
+                font-size: 10pt;
             }
             
             body {
@@ -40,10 +41,13 @@ include 'config.php';
                 top:0px;
                 bottom:0px;
             }
+
+            .header {
+                height: 12px;
+            }
             
             .top {
                 height: 35px;
-                font-size: 10pt;
             }
             
             .left {
@@ -61,7 +65,7 @@ include 'config.php';
         </style>
     </head>
     <body>
-        <table>
+        <table cellpadding="0" callspacing="0">
             <tr>
                 <td class="top" colspan="2">
                     <a  href="http://code.google.com/p/mql-to-sql/" 
@@ -101,13 +105,16 @@ include 'config.php';
                 </td>
             </tr>
             <tr>
-                <td class="left">
+                <td class="left" rowspan="2">
                     <button 
                         type="button"
                         id="btnExecute"
                         title="Hit this button to execute your MQL query against the Sakila sample database"
                     >Execute</button>
                 </td>
+                <td class="header">MQL Query:</td>
+            </tr>
+            <tr>
                 <td class="right">
                     <textarea 
                         id="txtQuery" 
@@ -154,6 +161,7 @@ include 'config.php';
                     </textarea>
                 </td>
             </tr>
+            <tr><td></td><td class="header">Result:</td></tr>
             <tr>
                 <td>
                 </td>
