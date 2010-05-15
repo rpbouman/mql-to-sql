@@ -1,0 +1,10 @@
+{
+    "pdo": {
+        "dsn": "pgsql:dbname=pagila",
+        "username": "pagila_admin",
+        "password": "pagila_admin",
+        "driver_options": {
+        }
+    },
+    "explicit_type_conversion": true
+}
