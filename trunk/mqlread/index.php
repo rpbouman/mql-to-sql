@@ -96,7 +96,19 @@ function analyze_property($property_name, $property_value){
 
 function get_type_from_schema($domain, $type){
     global $metadata;
-    return $metadata['domains'][$domain]['types'][$type];
+	$domains = $metadata['domains'];
+	if (isset($domains[$domain])){
+		$domain = $domains[$domain];
+	} else {
+		return NULL;
+	}
+	$types = $domain['types'];
+	if (isset($types[$type])){
+		return $types[$type];
+	}
+	else {
+		return NULL;
+	}    
 }
 
 function process_mql_object(&$mql_object, &$parent){
@@ -287,7 +299,7 @@ function reset_ids(){
 
 function get_t_alias(){
     global $t_alias_id;
-    return 'T'.(++$t_alias_id);
+    return 't'.(++$t_alias_id);
 }
 
 function get_c_alias($new=TRUE){
@@ -295,12 +307,12 @@ function get_c_alias($new=TRUE){
     if ($new){
         $c_alias_id++;
     }
-    return 'C'.$c_alias_id;
+    return 'c'.$c_alias_id;
 }
 
 function get_p_name(){
     global $p_id;
-    return 'P'.(++$p_id);
+    return 'p'.(++$p_id);
 }
 
 function is_optional($mql_node){
@@ -732,6 +744,7 @@ function &execute_sql($statement_text, $params){
 }
 
 function get_query_sql($query){
+	global $identifier_quote_start, $identifier_quote_end;
     $sql = 'SELECT';
     if ($select_columns = $query['select']) {
         foreach ($select_columns as $column_ref => $column_alias) {
@@ -854,6 +867,7 @@ function fill_result_object(&$mql_node, $query_index, $data, &$result_object){
             }
         }
     }
+	
 }
 
 function add_entry_to_indexes(&$indexes, $row_index, &$row) {
@@ -1183,8 +1197,11 @@ $pdo = new PDO(
 //print_r($pdo);
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $pdo->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, FALSE);
-$pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, TRUE);
+//$pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, TRUE);
+$pdo->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
 $explicit_type_conversion = $connection['explicit_type_conversion'];
+$identifier_quote_start = isset($connection['identifier_quote_start']) ? $connection['identifier_quote_start'] : '"';
+$identifier_quote_end = isset($connection['identifier_quote_end']) ? $connection['identifier_quote_end'] : $identifier_quote_start;
 $single_row_from_clause = isset($connection['single_row_table']) ? ' FROM '.$connection['single_row_table'].' ' : '';
 /*****************************************************************************
 *   Main
