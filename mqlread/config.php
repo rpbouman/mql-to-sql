@@ -9,10 +9,12 @@ $yui_url = 'http://yui.yahooapis.com/2.8.1';
 //note: the file with the connection data contains an absolute path
 //to the sqlite database file. You have to modify that to match the 
 //location on your system or else it won't work!
+
 $connection_file_name = '../schema/connection-sqlite.json';
 //$connection_file_name = '../schema/connection-postgresql.json';
+//$connection_file_name = '../schema/connection-oracle.json';
+//$connection_file_name = '../schema/connection-mysql.json';
 
 $metadata_file_name = '../schema/schema-sqlite.json';
 //$metadata_file_name = '../schema/schema.json';
-
-//print_r(PDO::getAvailableDrivers());
+//$metadata_file_name = '../schema/schema-postgresql.json';
