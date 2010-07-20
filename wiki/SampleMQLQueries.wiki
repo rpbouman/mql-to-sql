@@ -121,7 +121,7 @@ WHERE film_id IN (1,2,3)
 
 For more information on MQL operators, and the operators supported by mql-to-sql, please see [http://code.google.com/p/mql-to-sql/wiki/OperatorsSupportedByMQLtoSQL the wiki page on operator support].
 
-===Retrieve a film (by title) along with it's language===
+===Retrieve a film (by title) along with its language===
 So far, we've seen how properties in the MQL query and result map to database columns. But some properties map to tables rather than columns. Typically, these tables are related at the database level through a foreign key. 
 
 The precise details of the mapping from properties to foreign key relationships is again configurable.
@@ -207,7 +207,7 @@ INNER JOIN sakila.language l
 ON f.language_id = l.language_id
 WHERE f.title = 'ACADEMY DINOSAUR'
 }}}
-===Retrieve a film, it's language, and the id's  of its actors===
+===Retrieve a film, its language, and the id's  of its actors===
 {{{
 {
   "type": "/sakila/film",
@@ -219,7 +219,7 @@ WHERE f.title = 'ACADEMY DINOSAUR'
   }]
 }
 }}}
-===Retrieve a film, it's language, and its actors===
+===Retrieve a film, its language, and its actors===
 {{{
 {
   "type": "/sakila/film",
@@ -235,7 +235,7 @@ WHERE f.title = 'ACADEMY DINOSAUR'
   }]
 }
 }}}
-===Retrieve a film, it's language, its actors, and its inventory items===
+===Retrieve a film, its language, its actors, and its inventory items===
 {{{
 {
   "type": "/sakila/film",
