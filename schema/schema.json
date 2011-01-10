@@ -489,7 +489,8 @@
                             "type": "PRIMARY KEY",
                             "columns": ["film_id"]
                         }
-                    }
+                    },
+                    "default_property": "title"
                 },
                 "film_actor": {
                     "properties": {
