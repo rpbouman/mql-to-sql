@@ -117,6 +117,7 @@ function process_mql_object(&$mql_object, &$parent){
     $parent['properties'] = &$properties;
     $type = NULL;
     $types = array();
+    $star_property = FALSE;
     
     if(isset($parent) && isset($parent['schema'])) {
         $parent_schema_type_name = $parent['schema']['type'];
@@ -133,7 +134,7 @@ function process_mql_object(&$mql_object, &$parent){
         }
         $types[$parent_schema_type_name] = $parent_schema_type;
     }
-    
+        
     foreach ($object_vars as $property_key => $property_value) {
         if (!($property = analyze_property($property_key, $property_value))){
             exit('Property "'.$property_key.'" is not valid.');
@@ -173,6 +174,7 @@ function process_mql_object(&$mql_object, &$parent){
             case 'optional':
             case 'return':
             case 'sort':
+            case '*':
                 if ($property_qualifier==='' ) {
                     $property['is_directive'] = TRUE;
                     switch ($property_name) {
@@ -206,6 +208,7 @@ function process_mql_object(&$mql_object, &$parent){
         }            
         $properties[$property_key] = $property;
     }
+        
     $parent['types'] = array_keys($types);
     switch (count($types)) {
         case 0:
@@ -217,6 +220,7 @@ function process_mql_object(&$mql_object, &$parent){
         default:
             exit('Found more than one type. Currently we can handle only one type.');
     }   
+    
     foreach ($properties as $property_name => &$property){
         if ($property['is_directive']===TRUE) {
             continue;
@@ -258,7 +262,7 @@ function process_mql_array($mql_array, &$parent){
             break;
         case 1:
             $parent['entries'] = array();
-            if ($parent['schema']) {
+            if (array_key_exists('schema', $parent)) {
                 $parent['entries']['schema'] = $parent['schema'];
             }
             process_mql($mql_array[0], $parent['entries']);
@@ -572,6 +576,7 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
         ,   'from'                  =>  array()
         ,   'where'                 =>  ''
         ,   'order_by'              =>  ''
+        ,   'limit'                 =>  ''
         ,   'params'                =>  array()
         ,   'mql_node'              =>  &$mql_node
         ,   'indexes'               =>  array()
@@ -616,8 +621,21 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
     $t_alias = get_t_alias();
 
     get_from_clause($mql_node, $t_alias, $child_t_alias, $schema_name, $table_name, $query);
-    if ($properties = &$mql_node['properties']) { 
+    if (array_key_exists('properties', $mql_node)) {
+        $properties = &$mql_node['properties'];
         foreach ($properties as $property_name => &$property) {
+            if ($property['is_directive']) {
+                switch ($property_name) {
+                    case 'limit':
+                        $limit = intval($property['value']);
+                        if ($limit < 0) {
+                            exit('Limit must not be less than zero.');
+                        }
+                        $query['limit'] = $limit;
+                        break;
+                }
+            }
+            else
 			if (isset($mql_node['outer_join'])){
 				$property['outer_join'] = $mql_node['outer_join'];
 			}
@@ -672,11 +690,13 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
         }
     }
     else 
-    if ($default_property_name = $schema_type['default_property']) {
-        $default_property = $schema_type['properties'][$default_property_name];
-        if (!$default_property){
+    if (array_key_exists('default_property', $schema_type)) {
+        $default_property_name = $schema_type['default_property'];
+        $properties = $schema_type['properties'];
+        if (!array_key_exists($default_property_name, $properties)) {
             exit('Default property "'.$default_property_name.'" specified but not found in "/'.$domain_name.'/'.$type_name.'"');
         }
+        $default_property = $properties[$default_property_name];
         $column_name = $default_property['column_name'];
         $property = &$mql_node;
         $schema = &$property['schema'];
@@ -727,7 +747,7 @@ function prepare_sql_statement($statement_text){
     return $statement_handle;
 }
 
-function &execute_sql($statement_text, $params){
+function &execute_sql($statement_text, $params, $limit){
     global $pdo;
     $statement_handle = prepare_sql_statement($statement_text);
     foreach($params as $param_key => $param){
@@ -738,13 +758,25 @@ function &execute_sql($statement_text, $params){
         );
     }
     $statement_handle->execute();
-    $result = $statement_handle->fetchAll(PDO::FETCH_ASSOC);
+    if ($limit === -1) {
+        $result = $statement_handle->fetchAll(PDO::FETCH_ASSOC);
+    }
+    else {
+        $result = array();
+        while ($limit-- && $row = $statement_handle->fetch(PDO::FETCH_ASSOC)) {
+            $result[] = $row;
+        }
+    }
     $statement_handle->closeCursor();
     return $result;
 }
 
 function get_query_sql($query){
-	global $identifier_quote_start, $identifier_quote_end;
+	global $sql_dialect;
+    
+    $identifier_quote_start = $sql_dialect['identifier_quote_start'];
+    $identifier_quote_end = $sql_dialect['identifier_quote_end'];
+
     $sql = 'SELECT';
     if ($select_columns = $query['select']) {
         foreach ($select_columns as $column_ref => $column_alias) {
@@ -794,14 +826,30 @@ function get_query_sql($query){
     }
     
     $sql .= ($where? "\n".$where : '')
-    .       ($query['order_by']? "\n".$query['order_by'] : '');
+    .       ($query['order_by']? "\n".$query['order_by'] : '')
+    ;
+    if ($query['limit']) {
+        if ($sql_dialect['supports_limit']) {
+            $sql .= "\nLIMIT ".$query['limit'];
+        }
+    }
     return $sql;
 }
 
 function execute_sql_query(&$sql_query){
+    global $sql_dialect;
+    if ($sql_query['limit']) {
+        if ($sql_dialect['supports_limit']) {
+            //limit has been implemented directly in SQL
+            $limit = -1;
+        }
+        else {
+            $limit = $sql_query['limit'];
+        }
+    }
     $sql = get_query_sql($sql_query);
     $sql_query['sql'] = $sql;
-    return execute_sql($sql, $sql_query['params']);
+    return execute_sql($sql, $sql_query['params'], $limit);
 }
 
 function get_result_object(&$mql_node, $query_index, &$result_object=NULL, $key=NULL){
@@ -940,7 +988,8 @@ function merge_results(&$queries, $query_index, $key, $from, $to){
 }
 
 function create_inline_table_for_index_entry(&$entries, $columns, $column_index, &$statement, &$row){
-    global $pdo, $single_row_from_clause;
+    global $pdo, $sql_dialect;
+    $single_row_from_clause = $sql_dialect['single_row_from_clause'];
     foreach ($entries as $key => $value) {
         $row    .=  ($row === ''? 'SELECT ' : ', ')
                 .   (is_string($key)? $pdo->quote($key) : $key)
@@ -1111,118 +1160,176 @@ function handle_queries($queries){
     return $results;
 }
 
-$args = NULL;
-
-switch ($_SERVER['REQUEST_METHOD']){
-    case 'GET':
-        $args = $_GET;
-        break;
-    case 'POST':
-        $args = $_POST;
-        break;
-    default:
-        exit('Must use either GET or POST');
-}
-if (isset($args['query'])) {
-	$query = $args['query'];
-}
-if (isset($args['queries'])){
-	$queries = $args['queries'];
-}
-
-//check if the query parameter is present
-if ((!isset($query) && !isset($queries))
-||  ( isset($query) &&  isset($queries))) {
-    exit('Either query or queries must be specified');
-}
-
-$query_or_queries = $query? $query : $queries;
-
-//immunize against magic quoting
-if (get_magic_quotes_gpc() === 1) {
-    $query_or_queries = stripslashes($query_or_queries);
-}
-
-//check if the query parameter is valid JSON
-$query_decode = json_decode($query_or_queries);
-if ($query_decode===NULL) {
-    exit('query or queries not valid JSON ('.get_last_json_error().')');
-}
-
-//testing if the envelope is an object (not some other random JSON value)
-if (!is_object($query_decode)) {
-    exit('Envelope must be an object');
-}
-
-$debug_info = $query_decode->debug_info;
 /*****************************************************************************
 *   Schema
 ******************************************************************************/
 //$metadata_file_name is defined in config.php
-if (!file_exists($metadata_file_name)){
-    exit('Cannot find schema file "'.$metadata_file_name.'".');
+$metadata = NULL;
+
+function init_metadata(){
+    global $metadata_file_name, $metadata;
+    if (!file_exists($metadata_file_name)){
+        exit('Cannot find schema file "'.$metadata_file_name.'".');
+    }
+
+    $metadata_file_contents = file_get_contents($metadata_file_name);
+
+    if (!$metadata = json_decode($metadata_file_contents, TRUE)) {
+        exit('schema is not valid json ('.get_last_json_error().').');
+    }
 }
-
-$metadata_file_contents = file_get_contents($metadata_file_name);
-
-if (!$metadata = json_decode($metadata_file_contents, TRUE)) {
-    exit('schema is not valid json ('.get_last_json_error().').');
-}
-
 /*****************************************************************************
 *   Database (PDO)
 ******************************************************************************/
 //$connection_file_name is defined in config.php
-if (!file_exists($connection_file_name)){
-    exit('Cannot find connection file "'.$connection_file_name.'".');
+$pdo = NULL;
+$explicit_type_conversion = NULL;
+
+$sql_dialect = NULL;
+function init_dialect($pdo_config){
+    global $sql_dialect;
+    $pdo_dsn = $pdo_config['dsn'];
+    $db_type = substr($pdo_dsn, 0, strpos($pdo_dsn, ':'));
+    include($db_type.'-dialect.php');
 }
 
-$connection_file_contents = file_get_contents($connection_file_name);
+function init_pdo(){
+    global $connection_file_name, $pdo, 
+        $explicit_type_conversion, $sql_dialect
+    ;
+    if (!file_exists($connection_file_name)){
+        exit('Cannot find connection file "'.$connection_file_name.'".');
+    }
 
-if (!$connection = json_decode($connection_file_contents, TRUE)) {
-    exit('connection is not valid json ('.get_last_json_error().').');
+    $connection_file_contents = file_get_contents($connection_file_name);
+
+    if (!$connection = json_decode($connection_file_contents, TRUE)) {
+        exit('connection is not valid json ('.get_last_json_error().').');
+    }
+
+    $pdo_config = $connection['pdo'];
+
+    if (!is_array($pdo_config)) {
+        exit('schema does not specify a valid pdo configuration.');
+    }
+    init_dialect($pdo_config);
+
+    $pdo = new PDO(
+        $pdo_config['dsn']
+    ,   $pdo_config['username']
+    ,   $pdo_config['password']
+    ,   $pdo_config['driver_options']
+    );
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, FALSE);
+    $pdo->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
+    $explicit_type_conversion = $connection['explicit_type_conversion'];
 }
-
-$pdo_config = $connection['pdo'];
-
-if (!is_array($pdo_config)) {
-    exit('schema does not specify a valid pdo configuration.');
-}
-$pdo = new PDO(
-    $pdo_config['dsn']
-,   $pdo_config['username']
-,   $pdo_config['password']
-,   $pdo_config['driver_options']
-);
-//print_r($pdo);
-$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-$pdo->setAttribute(PDO::ATTR_STRINGIFY_FETCHES, FALSE);
-//$pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, TRUE);
-$pdo->setAttribute(PDO::ATTR_CASE, PDO::CASE_LOWER);
-$explicit_type_conversion = $connection['explicit_type_conversion'];
-$identifier_quote_start = isset($connection['identifier_quote_start']) ? $connection['identifier_quote_start'] : '"';
-$identifier_quote_end = isset($connection['identifier_quote_end']) ? $connection['identifier_quote_end'] : $identifier_quote_start;
-$single_row_from_clause = isset($connection['single_row_table']) ? ' FROM '.$connection['single_row_table'].' ' : '';
 /*****************************************************************************
-*   Main
+*   misc
 ******************************************************************************/
-if (isset($queries)) {
-    $result = handle_queries($query_decode);
+$args = NULL;
+function init_args() {
+    global $args;
+    switch ($_SERVER['REQUEST_METHOD']){
+        case 'GET':
+            $args = $_GET;
+            break;
+        case 'POST':
+            $args = $_POST;
+            break;
+        default:
+            exit('Must use either GET or POST');
+    }
 }
-else {
-    $result = handle_query($query_decode);
-}
-$result['status'] = '200 OK';
-$result['transaction_id'] = 'not implemented';
-$json_result = json_encode($result);
+/*****************************************************************************
+*   Queries
+******************************************************************************/
+$query_or_queries = NULL;
+$query = NULL;
+$queries = NULL;
+$debug_info = NULL;
+function init_queries(){
+    global $args, 
+        $query, 
+        $queries,
+        $query_decode,
+        $debug_info
+    ;
+    if (isset($args['query'])) {
+        $query = $args['query'];
+    }
+    if (isset($args['queries'])){
+        $queries = $args['queries'];
+    }
 
-if (isset($args['callback'])) {
-    $content_type = 'text/javascript';
-    $response = $args['callback'].'('.$json_result.')';
+    //check if the query parameter is present
+    if ((!isset($query) && !isset($queries))
+    ||  ( isset($query) &&  isset($queries))) {
+        exit('Either query or queries must be specified');
+    }
+
+    $query_or_queries = $query? $query : $queries;
+
+    //immunize against magic quoting
+    if (get_magic_quotes_gpc() === 1) {
+        $query_or_queries = stripslashes($query_or_queries);
+    }
+
+    //check if the query parameter is valid JSON
+    $query_decode = json_decode($query_or_queries);
+    if ($query_decode===NULL) {
+        exit('query or queries not valid JSON ('.get_last_json_error().')');
+    }
+
+    //testing if the envelope is an object (not some other random JSON value)
+    if (!is_object($query_decode)) {
+        exit('Envelope must be an object');
+    }
+    $debug_info = $query_decode->debug_info;
 }
-else {
-    $content_type = 'application/json';
-    $response = $json_result;
+
+/**
+*
+*/
+function handle_request(){ 
+    global $args, 
+        $queries,
+        $query_decode;
+ 
+    if (isset($queries)) {
+        $result = handle_queries($query_decode);
+    }
+    else {
+        $result = handle_query($query_decode);
+    }
+    $result['status'] = '200 OK';
+    $result['transaction_id'] = 'not implemented';
+    $json_result = json_encode($result);
+
+    if (isset($args['callback'])) {
+        $content_type = 'text/javascript';
+        $response = $args['callback'].'('.$json_result.')';
+    }
+    else {
+        $content_type = 'application/json';
+        $response = $json_result;
+    }
+    header('Content-Type: '.$content_type);
+    echo $response;
 }
-header('Content-Type: '.$content_type);
-echo $response;
+/*****************************************************************************
+*   run
+******************************************************************************/
+function run() {
+    init_metadata();
+    init_pdo();
+    init_args();
+    init_queries();
+    handle_request();
+}
+
+/*****************************************************************************
+*   main
+******************************************************************************/
+run();
