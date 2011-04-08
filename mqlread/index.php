@@ -76,15 +76,15 @@ function is_filter_property($value){
 
 function analyze_property($property_name, $property_value){
     //                     12   2 1 345          5  4 6   647                       7
-    $property_pattern = '/^((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|!\|=|\?=|!\?=)?$/';
+    $property_pattern = '/^(((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|!\|=|\?=|!\?=)?)$/';
     $matches = array();
     if (preg_match($property_pattern, $property_name, $matches)){
         return array(
-            'prefix'        =>  $matches[2]
-        ,   'qualifier'     =>  $matches[5]
-        ,   'name'          =>  $matches[6]
-        ,   'operator'      =>  isset($matches[7])? $matches[7] : NULL
-        ,   'qualified'     =>  $matches[4]? TRUE : FALSE
+            'prefix'        =>  $matches[3]
+        ,   'qualifier'     =>  $matches[6]
+        ,   'name'          =>  $matches[7]
+        ,   'operator'      =>  isset($matches[8])? $matches[8] : NULL
+        ,   'qualified'     =>  $matches[5]? TRUE : FALSE
         ,   'value'         =>  $property_value
         ,   'is_filter'     =>  is_filter_property($property_value)
         ,   'is_directive'  =>  FALSE
@@ -730,6 +730,8 @@ function map_mql_to_php_type($mql_type){
         case '/type/int':
             $php_type = 'integer';
             break;
+        default:
+            throw new Exception('No php type defined for mql type: '.$mql_type);
     }
     return $php_type;
 }
@@ -828,6 +830,10 @@ function get_query_sql($query){
     $sql .= ($where? "\n".$where : '')
     .       ($query['order_by']? "\n".$query['order_by'] : '')
     ;
+    //TODO: this implementation of limit is buggy!
+    //It works fine if applied to a top-level mql node,
+    //When used for a nested mql node, it does not take into 
+    //account that the limit should be applied only to the nested node
     if ($query['limit']) {
         if ($sql_dialect['supports_limit']) {
             $sql .= "\nLIMIT ".$query['limit'];
@@ -838,14 +844,16 @@ function get_query_sql($query){
 
 function execute_sql_query(&$sql_query){
     global $sql_dialect;
-    if ($sql_query['limit']) {
-        if ($sql_dialect['supports_limit']) {
-            //limit has been implemented directly in SQL
-            $limit = -1;
-        }
-        else {
-            $limit = $sql_query['limit'];
-        }
+    if ($sql_query['limit'] && !$sql_dialect['supports_limit']) {
+        //TODO: this implementation of limit is buggy!
+        //It works fine if applied to a top-level mql node,
+        //When used for a nested mql node, it does not take into 
+        //account that the limit should be applied only to the nested node
+        $limit = $sql_query['limit'];
+    }
+    else {
+        //limit has been implemented directly in SQL
+        $limit = -1;
     }
     $sql = get_query_sql($sql_query);
     $sql_query['sql'] = $sql;

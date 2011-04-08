@@ -456,7 +456,7 @@
                         "release_year": {
                             "column_name": "release_year",
                             "nullable": true,
-                            "type": "/type/year"
+                            "type": "/type/int"
                         },
                         "rental_duration": {
                             "column_name": "rental_duration",
