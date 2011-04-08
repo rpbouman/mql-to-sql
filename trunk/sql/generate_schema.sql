@@ -96,6 +96,7 @@ select      table_schema
                     ,   'mediumint'
                     ,   'smallint'
                     ,   'tinyint'
+                    ,   'year'
                     ) then 'int'
                     when data_type in (
                         'binary'
