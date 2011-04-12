@@ -57,7 +57,7 @@ function analyze_type($type) {
     return FALSE;
 }
 
-function is_filter_property($value){
+function is_filter_property($value){    
     if ($value===NULL) {
         return FALSE;
     }
@@ -490,16 +490,19 @@ function handle_filter_property(&$queries, $query_index, $t_alias, $column_name,
     $query = &$queries[$query_index];
     $from = &$query['from'];
     $params = &$query['params'];
-    
+    $where = &$query['where'];
+
     $num_from_lines = count($from);
     if ($num_from_lines > 1){
         $from_line = &$from[$num_from_lines -  1];
         $from_or_where = &$from_line['join_condition'];
-        $from_or_where .= "\nAND ${t_alias}.${column_name}";
+        $from_or_where .= "\n".'AND '.$t_alias.'.'.$column_name;
+
     } 
     else {
         $from_or_where = &$query['where'];
-        $from_or_where .= ($from_or_where? "\nAND" : 'WHERE').' '.$t_alias.'.'.$column_name;
+        $from_or_where .= ($from_or_where? "\n".'AND' : 'WHERE')
+                        .' '.$t_alias.'.'.$column_name;
     }
     
     //prepare right hand side of the filter expression
@@ -549,6 +552,7 @@ function handle_filter_property(&$queries, $query_index, $t_alias, $column_name,
     if ($add_closing_escape_clause) {
         $from_or_where .= " ESCAPE '\\'";
     }
+    
 }
 
 function handle_non_filter_property($t_alias, $column_name, &$select, &$property){
@@ -624,6 +628,7 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
     if (array_key_exists('properties', $mql_node)) {
         $properties = &$mql_node['properties'];
         foreach ($properties as $property_name => &$property) {
+            
             if ($property['is_directive']) {
                 switch ($property_name) {
                     case 'limit':
@@ -639,6 +644,7 @@ function generate_sql(&$mql_node, &$queries, $query_index, $child_t_alias=NULL, 
 			if (isset($mql_node['outer_join'])){
 				$property['outer_join'] = $mql_node['outer_join'];
 			}
+            
             $schema = $property['schema'];
             if (isset($schema['direction'])) {
 				$direction = $schema['direction'];
@@ -741,7 +747,7 @@ $statement_cache = array();
 function prepare_sql_statement($statement_text){
     global $pdo, $statement_cache;
     if (isset($statement_cache[$statement_text])){
-		$statement_handle = $statement_cache[$statement_text];
+        $statement_handle = $statement_cache[$statement_text];
     } else {
         $statement_handle = $pdo->prepare($statement_text);
         $statement_cache[$statement_text] = $statement_handle;
@@ -750,26 +756,36 @@ function prepare_sql_statement($statement_text){
 }
 
 function &execute_sql($statement_text, $params, $limit){
-    global $pdo;
-    $statement_handle = prepare_sql_statement($statement_text);
-    foreach($params as $param_key => $param){
-        $statement_handle->bindValue(
-            $param['name']
-        ,   $param['value']
-        ,   $param['type']
+    global $pdo, $noexecute;
+    if ($noexecute){
+        return array();
+    }
+    try {
+        $statement_handle = prepare_sql_statement($statement_text);
+        foreach($params as $param_key => $param){
+            $statement_handle->bindValue(
+                $param['name']
+            ,   $param['value']
+            ,   $param['type']
+            );
+        }
+        $statement_handle->execute();
+        if ($limit === -1) {
+            $result = $statement_handle->fetchAll(PDO::FETCH_ASSOC);
+        }
+        else {
+            $result = array();
+            while ($limit-- && $row = $statement_handle->fetch(PDO::FETCH_ASSOC)) {
+                $result[] = $row;
+            }
+        }
+        $statement_handle->closeCursor();
+    } catch (Exception $exception) {
+        throw new Exception(
+            $exception->getMessage().
+            ' Offending statement: '.$statement_text
         );
     }
-    $statement_handle->execute();
-    if ($limit === -1) {
-        $result = $statement_handle->fetchAll(PDO::FETCH_ASSOC);
-    }
-    else {
-        $result = array();
-        while ($limit-- && $row = $statement_handle->fetch(PDO::FETCH_ASSOC)) {
-            $result[] = $row;
-        }
-    }
-    $statement_handle->closeCursor();
     return $result;
 }
 
@@ -799,8 +815,20 @@ function get_query_sql($query){
             $optionality_group[] = $from_line['optionality_group_column'];
         }
         $from_or_join = $index && (isset($from_line['join_type']));
-        $sql .= "\n".($from_or_join ? $from_line['join_type'].' JOIN ' : 'FROM ').$from_line['table'].' '.$from_line['alias'];
-        if ($from_or_join){
+        if ($from_or_join) {
+            $sql .= "\n".$from_line['join_type'].' JOIN '
+                    .$from_line['table'].' '.$from_line['alias']
+                    ."\n".$from_line['join_condition']
+            ;
+        }
+        else
+        if (array_key_exists('table', $from_line)) {
+            $sql .= "\nFROM ".$from_line['table'].' '.$from_line['alias'];
+        }
+        else
+        if ($from_line['join_condition']){
+            //these are filter condition but we write them in the join
+            //this is required to handle outer joins.
             $sql .= "\n".$from_line['join_condition'];
         }
     }    
@@ -1019,7 +1047,7 @@ function create_inline_table_for_index(&$index){
     $statement = '';
     $row = '';
     create_inline_table_for_index_entry($index['entries'], $index['columns'], 0, $statement, $row);
-    $statement = "(\n$statement\n)";
+    $statement = "(\n".$statement."\n)";
     $index['inline_table'] = $statement;
 }
 
@@ -1262,7 +1290,8 @@ function init_queries(){
         $query, 
         $queries,
         $query_decode,
-        $debug_info
+        $debug_info,
+        $noexecute
     ;
     if (isset($args['query'])) {
         $query = $args['query'];
@@ -1294,7 +1323,9 @@ function init_queries(){
     if (!is_object($query_decode)) {
         exit('Envelope must be an object');
     }
-    $debug_info = $query_decode->debug_info;
+    
+    $debug_info = property_exists($query_decode,'debug_info')? $query_decode->debug_info : FALSE;
+    $noexecute = property_exists($query_decode,'noexecute')? $query_decode->noexecute : FALSE;
 }
 
 /**
