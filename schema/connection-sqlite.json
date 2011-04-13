@@ -1,6 +1,6 @@
 {
     "pdo": {
-        "dsn": "sqlite:D:\\Projects\\mql-to-sql\\data\\sakila.sqlite",
+        "dsn": "sqlite:/home/roland/mql-to-sql/data/sakila.sqlite",
         "username": null,
         "password": null,
         "driver_options": {
