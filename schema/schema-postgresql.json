@@ -15,7 +15,7 @@
                             "nullable": false,
                             "type": "/type/text"
                         },
-                        "fk_film_actor_actor": {
+                        "starring_in": {
                             "type": "/sakila/film_actor",
                             "direction": "referenced<-referencing",
                             "join_condition": [
@@ -457,7 +457,7 @@
                         "release_year": {
                             "column_name": "release_year",
                             "nullable": true,
-                            "type": "/type/year"
+                            "type": "/type/int"
                         },
                         "rental_duration": {
                             "column_name": "rental_duration",
@@ -532,6 +532,7 @@
                             "type": "/type/datetime"
                         }
                     },
+                    "default_property": "last_update",
                     "keys": {
                         "PRIMARY": {
                             "type": "PRIMARY KEY",
@@ -579,6 +580,7 @@
                             "type": "/type/datetime"
                         }
                     },
+                    "default_property": "last_update",
                     "keys": {
                         "PRIMARY": {
                             "type": "PRIMARY KEY",
