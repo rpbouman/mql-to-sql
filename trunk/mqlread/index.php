@@ -75,8 +75,8 @@ function is_filter_property($value){
 }
 
 function analyze_property($property_name, $property_value){
-    //                     12   2 1 345          5  4 6   647                       7
-    $property_pattern = '/^(((\w+):)?(((\/\w+\/\w+)\/)?(\w+))(=|<=?|>=?|~=|!=|\|=|!\|=|\?=|!\?=)?)$/';
+    //                      12   2 1 345          5  4 6      647                                 7
+    $property_pattern = '/^(((\w+):)?(((\/\w+\/\w+)\/)?(\w+|\*))(=|<=?|>=?|~=|!=|\|=|!\|=|\?=|!\?=)?)$/';
     $matches = array();
     if (preg_match($property_pattern, $property_name, $matches)){
         return array(
@@ -140,11 +140,11 @@ function process_mql_object(&$mql_object, &$parent){
             exit('Property "'.$property_key.'" is not valid.');
         }
         $operator = $property['operator'];
-        if ($operator) {
+        if ($operator) {            
             $operator_in = ($operator==='|=')||($operator==='!|=');
             if ($property_value === NULL
             ||  is_object($property_value)
-            ||  ($operator_in && is_array($property_value) && count($property_value)===0)
+            || ($operator_in && is_array($property_value) && count($property_value)===0)
             ){
                 exit("Operator ".$operator.' '
                 .(($operator==='|=' || $operator==='!|=')
@@ -156,7 +156,7 @@ function process_mql_object(&$mql_object, &$parent){
         $property_qualifier = $property['qualifier'];
         $property_name      = $property['name'];
         
-        switch($property_name){
+        switch ($property_name) {
             case 'type':
             case 'creator':
             case 'guid':
@@ -165,7 +165,6 @@ function process_mql_object(&$mql_object, &$parent){
             case 'name':
             case 'permission':
             case 'timestamp':
-            case 'type':
                 if ($property_qualifier==='') {
                     $property['qualifier'] = '/type/object';
                 }
@@ -181,6 +180,9 @@ function process_mql_object(&$mql_object, &$parent){
                         case 'optional':
                             $parent['optional'] = ($property_value===TRUE || $property_value==='optional');
                             break;
+                        case '*':
+                            $star_property = TRUE;
+                            break;
                     }
                 }
             default:
@@ -192,7 +194,7 @@ function process_mql_object(&$mql_object, &$parent){
         if ($property['qualifier'] === '/type/object'
         &&  $property_name         === 'type'
         &&  isset($property_value)
-        &&  !isset($types[$property_value])
+        && !isset($types[$property_value])
         ) {     
             $type = analyze_type($property_value);
             if (!$type) {
@@ -214,12 +216,32 @@ function process_mql_object(&$mql_object, &$parent){
         case 0:
             exit('Could not find a type. Currently we rely on a known type');
             break;
-        case 1:                        
-            foreach($types as $type_name => $type){} //assigning the contents of the array to the $type variable. php gurus, any better way to do this?
+        case 1:
+            //assigning the contents of the array to the $type variable.
+            //php gurus, any better way to do this?
+            foreach($types as $type_name => $type){} 
             break;
         default:
             exit('Found more than one type. Currently we can handle only one type.');
-    }   
+    }
+    if ($star_property===TRUE) {
+        unset($properties['*']);
+        foreach ($type['properties'] as $property_name => $property) {
+            if (isset($properties[$property_name])){
+                continue;
+            }
+            if (isset($property['column_name'])) {
+                $properties[$property_name] = array(
+                    'is_directive'  =>  FALSE,
+                    'qualifier'     =>  '',
+                    'name'          =>  $property_name,
+                    'value'         =>  NULL,
+                    'is_filter'     =>  FALSE,
+                    'operator'      =>  NULL
+                );
+            }
+        }
+    }
     
     foreach ($properties as $property_name => &$property){
         if ($property['is_directive']===TRUE) {
