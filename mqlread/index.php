@@ -111,15 +111,9 @@ function get_type_from_schema($domain, $type){
 	}    
 }
 
-function process_mql_object(&$mql_object, &$parent){
-    $object_vars = get_object_vars($mql_object);    
-    $properties = array();
-    $parent['properties'] = &$properties;
-    $type = NULL;
-    $types = array();
-    $star_property = FALSE;
-    
-    if(isset($parent) && isset($parent['schema'])) {
+//helper for process_mql_object
+function get_parent_type($parent, &$types){
+    if (isset($parent) && isset($parent['schema'])) {
         $parent_schema_type_name = $parent['schema']['type'];
         $parent_schema_type = analyze_type($parent_schema_type_name);
         $parent_schema_type_domain = $parent_schema_type['domain'];
@@ -134,7 +128,46 @@ function process_mql_object(&$mql_object, &$parent){
         }
         $types[$parent_schema_type_name] = $parent_schema_type;
     }
-        
+}
+
+//helper for process_mql_object
+function check_types($types) {
+    switch (count($types)) {
+        case 0:
+            exit('Could not find a type. Currently we rely on a known type');
+            break;
+        case 1:
+            //assigning the contents of the array to the $type variable.
+            //php gurus, any better way to do this?
+            foreach($types as $type_name => $type){} 
+            break;
+        default:
+            exit('Found more than one type. Currently we can handle only one type.');
+    }
+}
+
+//helper for process_mql_object
+function expand_star($source_properties, &$target_properties) {
+    unset($target_properties['*']);
+    foreach ($source_properties as $property_name => $property) {
+        if (isset($target_properties[$property_name])){
+            continue;
+        }
+        if (isset($property['column_name'])) {
+            $target_properties[$property_name] = array(
+                'is_directive'  =>  FALSE,
+                'qualifier'     =>  '',
+                'name'          =>  $property_name,
+                'value'         =>  NULL,
+                'is_filter'     =>  FALSE,
+                'operator'      =>  NULL
+            );
+        }
+    }
+}
+
+//helper for process_mql_object
+function pre_process_properties($object_vars, &$properties, &$types, &$star_property){
     foreach ($object_vars as $property_key => $property_value) {
         if (!($property = analyze_property($property_key, $property_value))){
             exit('Property "'.$property_key.'" is not valid.');
@@ -186,7 +219,7 @@ function process_mql_object(&$mql_object, &$parent){
                     }
                 }
             default:
-                if ($property_qualifier === '/type/object'){
+                if ($property_qualifier === '/type/object') {
                     exit('"'.$property_name.'" is not a universal property, and may not have the qualifier "'.$property_qualifier.'".');
                 }
         }
@@ -210,39 +243,10 @@ function process_mql_object(&$mql_object, &$parent){
         }            
         $properties[$property_key] = $property;
     }
-        
-    $parent['types'] = array_keys($types);
-    switch (count($types)) {
-        case 0:
-            exit('Could not find a type. Currently we rely on a known type');
-            break;
-        case 1:
-            //assigning the contents of the array to the $type variable.
-            //php gurus, any better way to do this?
-            foreach($types as $type_name => $type){} 
-            break;
-        default:
-            exit('Found more than one type. Currently we can handle only one type.');
-    }
-    if ($star_property===TRUE) {
-        unset($properties['*']);
-        foreach ($type['properties'] as $property_name => $property) {
-            if (isset($properties[$property_name])){
-                continue;
-            }
-            if (isset($property['column_name'])) {
-                $properties[$property_name] = array(
-                    'is_directive'  =>  FALSE,
-                    'qualifier'     =>  '',
-                    'name'          =>  $property_name,
-                    'value'         =>  NULL,
-                    'is_filter'     =>  FALSE,
-                    'operator'      =>  NULL
-                );
-            }
-        }
-    }
-    
+}
+
+//helper for process_mql_object
+function process_properties(&$properties, $type_name, $type) {
     foreach ($properties as $property_name => &$property){
         if ($property['is_directive']===TRUE) {
             continue;
@@ -275,6 +279,25 @@ function process_mql_object(&$mql_object, &$parent){
         }
         
     }
+}
+
+function process_mql_object(&$mql_object, &$parent){
+    $object_vars = get_object_vars($mql_object);    
+    $properties = array();
+    $type = NULL;
+    $types = array();
+    $star_property = FALSE;
+    $parent['properties'] = &$properties;
+
+    get_parent_type($parent, $types);
+    pre_process_properties($object_vars, $properties, $types, $star_property);
+    check_types($types);
+    foreach($types as $type_name => $type){}    //extract the type name
+    $parent['types'] = array_keys($types);
+    if ($star_property===TRUE) {
+        expand_star($type['properties'], $properties);
+    }
+    process_properties($properties, $type_name, $type);
 }
 
 function process_mql_array($mql_array, &$parent){

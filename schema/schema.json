@@ -584,7 +584,8 @@
                             "type": "PRIMARY KEY",
                             "columns": ["film_id","category_id"]
                         }
-                    }
+                    },
+                    "default_property": "last_update"
                 },
                 "inventory": {
                     "properties": {
