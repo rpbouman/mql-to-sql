@@ -196,7 +196,7 @@
                         setResult("");
                         var txtQuery = document.getElementById("txtQuery");
                         var query = txtQuery.value;
-                        var o = eval(query);
+                        var o = eval("(" + query + ")");
                         doMQLReadRequest(JSON.stringify(o, null, 0));
                     } catch (e) {
                         setResult(e);
