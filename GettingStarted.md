@@ -1,0 +1,34 @@
+# Getting Started #
+You can either run mql-to-sql locally on your own webserver, or try the online demo.
+
+## Running Locally ##
+To run mql-to-sql locally, you'll need a webserver with PHP support. The script relies on the JSON, as well as the PDO extensions. It is being developed on PHP 5.2.8 but you may be able to run it against another version of PHP.
+
+A sample SQLite database with the Sakila schema and sample data is included in the project, so you can get started on your own server with minimal effort. The steps are:
+
+  1. do a subversion check out of the code (see http://code.google.com/p/mql-to-sql/source/checkout)
+  1. configure your webserver to make the `mqlread` subdirectory of the project available
+  1. edit the `connection-sqlite.json` file in the `schema` subdirectory to point to the absolute location of the `sakila.sqlite` file in the `data` directory
+
+That's it!
+
+If you don't feel like going through these steps, of if you are unsure it's worth it, you should consider to check out the online demo. This will give you the quickest impression of what this project is about. If that sparks your interest, you can still decide to run a local instance.
+
+### Running against your own RDBMS ###
+To run mql-to-sql against your own database, additional steps are involved:
+
+  * You need to create a JSON file (referred to as a schema) to map MQL concepts such as domains, types and properties to the objects in your database, such as schemas, tables, columns and relationships.
+  * You need to create a JSON file that describes the connection to your RDBMS. Currently, mql-to-sql uses PDO as database access layer. You can find a number of connection configuration files in the schema directory
+  * You need to edit config.php to point to your schema and connection files.
+
+If you have the sakila sample database installed on a MySQL instance, you can use schema.json file and modify the connection-mysql.json file to try this out. To get started with your own schema, you can use the generate\_schema.sql script in the sql directory to generate schema files against MySQL databases. Scripts to generate schemas for other databases will be added in the future.
+
+## Online Demo ##
+To try it out online, goto:
+
+http://mql.qbmetrix.com/mqlread/mql-to-sql-query-editor.php
+
+This allows you to execute MQL queries against the MySQL [Sakila](http://dev.mysql.com/doc/sakila/en/sakila.html) sample database without installing or configuring anything yourself.
+
+Screenshot:
+![http://farm4.static.flickr.com/3405/4602148435_dca44333f3_o.png](http://farm4.static.flickr.com/3405/4602148435_dca44333f3_o.png)
