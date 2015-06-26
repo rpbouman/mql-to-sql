@@ -8,10 +8,10 @@
                 font-family: arial;
                 font-size: 10pt;
             }
-            
+
             body {
             }
-            
+
             table {
                 height: 100%;
                 position: absolute;
@@ -25,7 +25,7 @@
                 vertical-align: top;
                 align: left;
             }
-            
+
             textarea {
                 border-style:solid;
                 border-width:1px;
@@ -41,22 +41,22 @@
             .header {
                 height: 12px;
             }
-            
+
             .top {
                 height: 35px;
             }
-            
+
             .left {
                 width: 75px;
                 height: 30%;
             }
-            
+
             .right {
                 height: 30%;
             }
-            
+
             button {
-                
+
             }
         </style>
     </head>
@@ -64,7 +64,7 @@
         <table cellpadding="0" callspacing="0">
             <tr>
                 <td class="top" colspan="2">
-                    <a  href="http://code.google.com/p/mql-to-sql/" 
+                    <a  href="http://code.google.com/p/mql-to-sql/"
                         target="mql-to-sql"
                         title="mql-to-sql project homepage hosted at google code."
                     >Project: mql-to-sql</a>
@@ -96,7 +96,7 @@
             </tr>
             <tr>
                 <td class="left" rowspan="2">
-                    <button 
+                    <button
                         type="button"
                         id="btnExecute"
                         title="Hit this button to execute your MQL query against the Sakila sample database"
@@ -109,9 +109,9 @@
             </tr>
             <tr>
                 <td class="right">
-                    <textarea 
-                        id="txtQuery" 
-                        rows="5" 
+                    <textarea
+                        id="txtQuery"
+                        rows="5"
                         title="Type your MQL query here."
                     ></textarea>
                 </td>
@@ -121,15 +121,15 @@
                 <td>
                 </td>
                 <td class="right">
-                    <textarea 
-                        id="txtResult" 
+                    <textarea
+                        id="txtResult"
                         rows="20"
                         title="This is where the JSON result of you MQL query will be returned"
                     ></textarea>
                 </td>
             </tr>
-        </table>        
-        
+        </table>
+
         <!-- Script for the query editor -->
         <script type="text/javascript">
             (function () {
@@ -139,7 +139,7 @@
                     var t = JSON.stringify(o, null, 2);
                     return t;
                 }
-            
+
                 function setResult(v){
                     document.getElementById("txtResult").value = v;
                 }
@@ -169,35 +169,35 @@
                         }
                     };
                     xhr.send(null);
-                }                
-                
+                }
+
                 function handleMQLReadFailure(response){
                     alert("Snap, something went wrong :("+
-                    "\n"+ "http status code: " + response.status + 
+                    "\n"+ "http status code: " + response.status +
                     "\n"+ "http status text: " + response.statusText
                     );
                 }
-                
+
                 function handleMQLReadResponse(response){
                     var t, rt = response.responseText;
                     try {
-                        t = validateJSON(rt);                        
+                        t = validateJSON(rt);
                     } catch(e) {
-                        t = "Error in response:\n" + e + 
+                        t = "Error in response:\n" + e +
                             "\nRaw responseText:\n\n" + rt;
                     }
                     setResult(t);
                 }
 
                 var rst = document.getElementById("txtResult");
-                
+
                 document.getElementById("btnExecute").onclick = function(){
                     try {
                         setResult("");
                         var txtQuery = document.getElementById("txtQuery");
                         var query = txtQuery.value;
-                        var o = eval("(" + query + ")");
-                        doMQLReadRequest(JSON.stringify(o, null, 0));
+                        var json = validateJSON(query);
+                        doMQLReadRequest(json);
                     } catch (e) {
                         setResult(e);
                         txtQuery.value = query;

@@ -8,7 +8,7 @@
 $yui_url = 'http://localhost/yui_2.8.0r4';
 
 //note: the file with the connection data contains an absolute path
-//to the sqlite database file. You have to modify that to match the 
+//to the sqlite database file. You have to modify that to match the
 //location on your system or else it won't work!
 
 $connection_file_name = '../schema/connection-sqlite.json';
